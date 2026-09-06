@@ -14,25 +14,29 @@ HTML, and CSS.
 The website contains three main pages:
 
 1. Home
-   - Includes my name, position, biography, and profile photo.
+   - Includes my name, position, biography, academic interests, and
+     profile photograph.
 
 2. Projects
-   - Describes the Module 1 personal website project.
-   - Includes a link to the GitHub repository.
+   - Describes my Module 1 personal developer website project.
+   - Lists the technologies used to create the project.
+   - Includes a link to the Module 1 GitHub source code.
 
 3. Contact
-   - Includes my email address and LinkedIn profile.
+   - Includes my Johns Hopkins email address.
+   - Includes a link to my LinkedIn profile.
 
-The application also uses Flask Blueprints, HTML templates, CSS styling,
-and a navigation bar that highlights the currently selected page.
+The application uses Flask Blueprints to organize page routes, reusable
+Jinja HTML templates for page structure, CSS for styling and responsive
+layout, and Git/GitHub for version control.
 
 
 REQUIREMENTS
 
 - Python 3.10 or newer
-- Flask
+- Flask 3.1.3
 
-The required Python packages are listed in requirements.txt.
+The required Python package is listed in requirements.txt.
 
 
 INSTALLATION
@@ -41,7 +45,7 @@ INSTALLATION
 
 2. Navigate to the module_1 directory.
 
-3. Install the required packages with:
+3. Install the required packages:
 
    python -m pip install -r requirements.txt
 
@@ -54,9 +58,21 @@ From inside the module_1 directory, run:
 
 The Flask development server will start on port 8080.
 
-Open a web browser and go to:
+Open a web browser and navigate to:
 
    http://localhost:8080
+
+
+WEBSITE ROUTES
+
+Home:
+   http://localhost:8080/
+
+Projects:
+   http://localhost:8080/projects
+
+Contact:
+   http://localhost:8080/contact
 
 
 PROJECT STRUCTURE
@@ -66,6 +82,7 @@ module_1/
     pages.py
     requirements.txt
     README.txt
+    Module_1_Screenshots.pdf
 
     static/
         style.css
@@ -80,4 +97,18 @@ module_1/
 
 GITHUB REPOSITORY
 
+SSH:
 git@github.com:abdulstack-ui/jhu_software_concepts.git
+
+Module 1:
+https://github.com/abdulstack-ui/jhu_software_concepts/tree/main/module_1
+
+
+NOTES
+
+The application is intended to be started using:
+
+   python run.py
+
+The Flask development server runs on localhost port 8080 as required by
+the Module 1 assignment.
