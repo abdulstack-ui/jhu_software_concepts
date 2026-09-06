@@ -4,26 +4,65 @@
 
 {% block content %}
 
-<h1>Projects</h1>
+{# Introduction to the project portfolio. #}
+<div class="page-heading">
 
+    <p class="eyebrow">Portfolio</p>
+
+    <h1>Projects</h1>
+
+    <p>
+        Projects completed as part of my Python and software development
+        coursework.
+    </p>
+
+</div>
+
+
+{# Module 1 project description and source-code information. #}
 <section class="project-card">
-    <h2>Module 1 - Personal Developer Website</h2>
+
+    <div class="project-header">
+
+        <div>
+            <p class="project-number">MODULE 1</p>
+            <h2>Personal Developer Website</h2>
+        </div>
+
+        <span class="status">Completed</span>
+
+    </div>
 
     <p>
-        A personal developer portfolio built using Python, Flask,
-        HTML, and CSS for EN.605.256 - Modern Concepts in Python,
-        Fall 2026, Whiting School of Engineering, Johns Hopkins University.
+        A personal developer portfolio built using Python, Flask, HTML,
+        and CSS for EN.605.256 - Modern Concepts in Python, Fall 2026,
+        Whiting School of Engineering, Johns Hopkins University.
     </p>
 
     <p>
-        This project demonstrates Flask routing, HTML templates,
-        navigation, styling, and Git-based version control.
+        This project demonstrates Flask routing, reusable HTML templates,
+        Flask Blueprints, CSS-based page design, navigation, and Git-based
+        version control.
     </p>
 
-    <a href="https://github.com/abdulstack-ui/jhu_software_concepts"
-       target="_blank">
-        View project on GitHub
+    {# Technologies used to create the Module 1 project. #}
+    <div class="tags">
+        <span>Python</span>
+        <span>Flask</span>
+        <span>HTML</span>
+        <span>CSS</span>
+        <span>Git</span>
+    </div>
+
+    <a
+        class="button primary"
+        href="https://github.com/abdulstack-ui/jhu_software_concepts/tree/main/module_1"
+        target="_blank"
+        rel="noopener noreferrer"
+    >
+        View Project on GitHub
     </a>
+
 </section>
 
 {% endblock %}

@@ -1,36 +1,65 @@
+{# Shared base template used by every page in the website. #}
+
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>{% block title %}Abdul Sarwar{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='style.css') }}"
+    >
 </head>
 
 <body>
 
-<nav>
-    <div class="nav-links">
-        <a href="{{ url_for('pages.home') }}"
-           class="{% if request.endpoint == 'pages.home' %}active{% endif %}">
-            Home
-        </a>
+    {# Main navigation bar shared by all pages. #}
+    <nav>
+        <div class="nav-links">
 
-        <a href="{{ url_for('pages.projects') }}"
-           class="{% if request.endpoint == 'pages.projects' %}active{% endif %}">
-            Projects
-        </a>
+            <a
+                href="{{ url_for('pages.home') }}"
+                class="{% if request.endpoint == 'pages.home' %}active{% endif %}"
+            >
+                Home
+            </a>
 
-        <a href="{{ url_for('pages.contact') }}"
-           class="{% if request.endpoint == 'pages.contact' %}active{% endif %}">
-            Contact
-        </a>
-    </div>
-</nav>
+            <a
+                href="{{ url_for('pages.projects') }}"
+                class="{% if request.endpoint == 'pages.projects' %}active{% endif %}"
+            >
+                Projects
+            </a>
 
-<main>
-    {% block content %}{% endblock %}
-</main>
+            <a
+                href="{{ url_for('pages.contact') }}"
+                class="{% if request.endpoint == 'pages.contact' %}active{% endif %}"
+            >
+                Contact
+            </a>
+
+        </div>
+    </nav>
+
+    {# Child templates insert their page-specific content here. #}
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    {# Shared footer provides course and author information. #}
+    <footer>
+        <p>
+            Abdul Sarwar &bull;
+            EN.605.256 Modern Concepts in Python &bull;
+            Johns Hopkins University &bull;
+            Fall 2026
+        </p>
+    </footer>
 
 </body>
+
 </html>

@@ -4,15 +4,55 @@
 
 {% block content %}
 
-<h1>Contact</h1>
+{# Contact page introduction. #}
+<div class="page-heading">
 
-<p>Email: msarwar1@jh.edu</p>
+    <p class="eyebrow">Get in Touch</p>
 
-<p>
-    LinkedIn:
-    <a href="https://www.linkedin.com/in/abdul-sarwar-9807b8193/" target="_blank">
-        View my LinkedIn profile
-    </a>
-</p>
+    <h1>Contact</h1>
+
+    <p>
+        Feel free to reach out regarding coursework, technology,
+        artificial intelligence, or software development.
+    </p>
+
+</div>
+
+
+{# Contact methods are displayed as separate cards. #}
+<div class="contact-grid">
+
+    <div class="contact-card">
+
+        <h2>Email</h2>
+
+        <p>msarwar1@jh.edu</p>
+
+        <a href="mailto:msarwar1@jh.edu">
+            Send an email
+        </a>
+
+    </div>
+
+
+    <div class="contact-card">
+
+        <h2>LinkedIn</h2>
+
+        <p>
+            Professional profile and experience
+        </p>
+
+        <a
+            href="https://www.linkedin.com/in/abdul-sarwar-9807b8193/"
+            target="_blank"
+            rel="noopener noreferrer"
+        >
+            View my LinkedIn profile
+        </a>
+
+    </div>
+
+</div>
 
 {% endblock %}

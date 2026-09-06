@@ -1,9 +1,29 @@
+/* =========================================================
+   Global Page Styles
+   ========================================================= */
+
 body {
     margin: 0;
     font-family: Arial, sans-serif;
     background-color: #f7f8fa;
     color: #222;
 }
+
+main {
+    max-width: 1100px;
+    min-height: calc(100vh - 250px);
+    margin: 60px auto;
+    padding: 0 30px;
+}
+
+p {
+    line-height: 1.6;
+}
+
+
+/* =========================================================
+   Navigation
+   ========================================================= */
 
 nav {
     display: flex;
@@ -13,11 +33,11 @@ nav {
 }
 
 .nav-links a {
-    color: white;
-    text-decoration: none;
     margin-left: 25px;
     padding: 10px 15px;
     border-radius: 5px;
+    color: white;
+    text-decoration: none;
 }
 
 .nav-links a:hover {
@@ -29,16 +49,61 @@ nav {
     color: #13294b;
 }
 
-main {
-    max-width: 1100px;
-    margin: 60px auto;
-    padding: 0 30px;
+
+/* =========================================================
+   Shared Typography and Components
+   ========================================================= */
+
+.eyebrow {
+    margin-bottom: 10px;
+    color: #5273a3;
+    font-size: 13px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    text-transform: uppercase;
 }
+
+.tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 25px 0;
+}
+
+.tags span {
+    padding: 7px 12px;
+    border-radius: 20px;
+    background-color: #e7edf5;
+    color: #13294b;
+    font-size: 14px;
+}
+
+.button {
+    display: inline-block;
+    padding: 11px 18px;
+    border-radius: 6px;
+    font-weight: bold;
+    text-decoration: none;
+}
+
+.button.primary {
+    background-color: #13294b;
+    color: white;
+}
+
+.button:hover {
+    opacity: 0.85;
+}
+
+
+/* =========================================================
+   Homepage
+   ========================================================= */
 
 .home-layout {
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    justify-content: space-between;
     gap: 60px;
 }
 
@@ -47,13 +112,18 @@ main {
 }
 
 .bio h1 {
-    font-size: 48px;
     margin-bottom: 10px;
+    font-size: 48px;
 }
 
 .bio h2 {
+    margin-top: 0;
     font-size: 24px;
     font-weight: normal;
+}
+
+.intro {
+    font-size: 18px;
 }
 
 .profile-image {
@@ -61,12 +131,131 @@ main {
 }
 
 .profile-image img {
+    display: block;
     width: 100%;
-    border-radius: 10px;
+    border-radius: 12px;
 }
 
+
+/* =========================================================
+   Page Headings
+   ========================================================= */
+
+.page-heading {
+    margin-bottom: 35px;
+}
+
+.page-heading h1 {
+    margin: 5px 0 10px;
+    font-size: 42px;
+}
+
+
+/* =========================================================
+   Projects Page
+   ========================================================= */
+
 .project-card {
+    padding: 30px;
+    border-radius: 10px;
     background-color: white;
+}
+
+.project-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.project-header h2 {
+    margin-top: 5px;
+}
+
+.project-number {
+    margin: 0;
+    color: #5273a3;
+    font-size: 12px;
+    font-weight: bold;
+    letter-spacing: 2px;
+}
+
+.status {
+    padding: 7px 12px;
+    border-radius: 20px;
+    background-color: #e7edf5;
+    color: #13294b;
+    font-size: 13px;
+}
+
+
+/* =========================================================
+   Contact Page
+   ========================================================= */
+
+.contact-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 25px;
+}
+
+.contact-card {
     padding: 25px;
     border-radius: 10px;
+    background-color: white;
+}
+
+.contact-card h2 {
+    margin-top: 0;
+}
+
+.contact-card a {
+    color: #245ea8;
+}
+
+
+/* =========================================================
+   Footer
+   ========================================================= */
+
+footer {
+    margin-top: 80px;
+    padding: 30px;
+    border-top: 1px solid #ddd;
+    color: #666;
+    font-size: 14px;
+    text-align: center;
+}
+
+
+/* =========================================================
+   Responsive Layout
+   ========================================================= */
+
+@media (max-width: 750px) {
+    nav {
+        padding: 15px 20px;
+    }
+
+    .nav-links a {
+        margin-left: 5px;
+    }
+
+    .home-layout {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .profile-image {
+        flex-basis: auto;
+        max-width: 320px;
+    }
+
+    .contact-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .project-header {
+        flex-direction: column;
+    }
 }

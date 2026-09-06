@@ -4,28 +4,49 @@
 
 {% block content %}
 
+{# Homepage uses the required bio-left, image-right layout. #}
 <div class="home-layout">
 
+    {# Personal biography and academic interests. #}
     <div class="bio">
+
+        <p class="eyebrow">
+            EN.605.256 &bull; Johns Hopkins University
+        </p>
+
         <h1>Abdul Sarwar</h1>
+
         <h2>Graduate Student in Artificial Intelligence</h2>
 
-        <p>
+        <p class="intro">
             Welcome to my personal developer website. I am interested in
             artificial intelligence, machine learning, mathematics, and
             software development.
         </p>
 
         <p>
-            This website will serve as a portfolio for projects completed
-            throughout EN.605.256 and will grow as I complete new Python
-            and software development projects.
+            I am currently developing my technical background through
+            graduate study in artificial intelligence at Johns Hopkins
+            University. This site serves as a growing portfolio of my
+            Python and software development work throughout EN.605.256.
         </p>
+
+        {# Areas of academic and technical interest. #}
+        <div class="tags">
+            <span>Artificial Intelligence</span>
+            <span>Machine Learning</span>
+            <span>Python</span>
+            <span>Mathematics</span>
+        </div>
+
     </div>
 
+    {# Profile photograph required by the assignment. #}
     <div class="profile-image">
-        <img src="{{ url_for('static', filename='profile.jpg') }}"
-             alt="Photo of Abdul Sarwar">
+        <img
+            src="{{ url_for('static', filename='profile.jpg') }}"
+            alt="Photo of Abdul Sarwar"
+        >
     </div>
 
 </div>
