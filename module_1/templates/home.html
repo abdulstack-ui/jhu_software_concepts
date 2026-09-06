@@ -1,12 +1,33 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Abdul Sarwar | Home</title>
-</head>
-<body>
-    <h1>Abdul Sarwar</h1>
-    <p>Welcome to my personal developer website.</p>
-</body>
-</html>
+{% extends "base.html" %}
+
+{% block title %}Home | Abdul Sarwar{% endblock %}
+
+{% block content %}
+
+<div class="home-layout">
+
+    <div class="bio">
+        <h1>Abdul Sarwar</h1>
+        <h2>Graduate Student in Artificial Intelligence</h2>
+
+        <p>
+            Welcome to my personal developer website. I am interested in
+            artificial intelligence, machine learning, mathematics, and
+            software development.
+        </p>
+
+        <p>
+            This website will serve as a portfolio for projects completed
+            throughout EN.605.256 and will grow as I complete new Python
+            and software development projects.
+        </p>
+    </div>
+
+    <div class="profile-image">
+        <img src="{{ url_for('static', filename='profile.jpg') }}"
+             alt="Photo of Abdul Sarwar">
+    </div>
+
+</div>
+
+{% endblock %}

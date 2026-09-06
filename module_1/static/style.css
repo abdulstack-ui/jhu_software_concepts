@@ -1,0 +1,72 @@
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background-color: #f7f8fa;
+    color: #222;
+}
+
+nav {
+    display: flex;
+    justify-content: flex-end;
+    padding: 20px 50px;
+    background-color: #13294b;
+}
+
+.nav-links a {
+    color: white;
+    text-decoration: none;
+    margin-left: 25px;
+    padding: 10px 15px;
+    border-radius: 5px;
+}
+
+.nav-links a:hover {
+    background-color: #294f7d;
+}
+
+.nav-links a.active {
+    background-color: white;
+    color: #13294b;
+}
+
+main {
+    max-width: 1100px;
+    margin: 60px auto;
+    padding: 0 30px;
+}
+
+.home-layout {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 60px;
+}
+
+.bio {
+    flex: 1;
+}
+
+.bio h1 {
+    font-size: 48px;
+    margin-bottom: 10px;
+}
+
+.bio h2 {
+    font-size: 24px;
+    font-weight: normal;
+}
+
+.profile-image {
+    flex: 0 0 320px;
+}
+
+.profile-image img {
+    width: 100%;
+    border-radius: 10px;
+}
+
+.project-card {
+    background-color: white;
+    padding: 25px;
+    border-radius: 10px;
+}
