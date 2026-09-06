@@ -17,7 +17,7 @@ main {
 }
 
 p {
-    line-height: 1.6;
+    line-height: 1.7;
 }
 
 
@@ -118,12 +118,19 @@ nav {
 
 .bio h2 {
     margin-top: 0;
-    font-size: 24px;
+    margin-bottom: 24px;
+    font-size: 25px;
     font-weight: normal;
 }
 
-.intro {
+.bio p {
+    margin-bottom: 20px;
     font-size: 18px;
+    line-height: 1.7;
+}
+
+.intro {
+    font-size: 19px;
 }
 
 .profile-image {
