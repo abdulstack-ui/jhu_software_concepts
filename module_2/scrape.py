@@ -170,6 +170,14 @@ def _extract_comments(decision_cell: Tag | None, summary_bits: list[str]) -> str
     for bit in sorted((b for b in summary_bits if b), key=len, reverse=True):
         remainder = remainder.replace(bit, " ")
     remainder = re.sub(r"\s+", " ", remainder).strip(" -|•")
+    # Reject leftover decision-status fragments.
+    if re.fullmatch(
+        r"(?:Accepted|Rejected|Interview|Wait\s*listed|Waitlisted)(?:\s+on)?",
+        remainder,
+        re.IGNORECASE,
+    ):
+        return None
+
     return remainder if len(remainder) >= 8 else None
 
 
