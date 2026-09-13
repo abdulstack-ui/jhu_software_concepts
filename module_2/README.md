@@ -2,7 +2,7 @@
 
 ## Name
 Muhammad Abdullah Sarwar  
-JHED ID: **[ADD JHED ID BEFORE SUBMISSION]**
+JHED ID: **ABE84F**
 
 ## Module Info
 Module 2 - Assignment: Web Scraping  
@@ -33,15 +33,15 @@ The implementation separates acquisition, parsing, cleaning, and persistence.
 
 ```text
 module_2/
-├── capture.py
-├── scrape.py
-├── clean.py
-├── requirements.txt
-├── applicant_data.json
-├── screenshot.jpg
-├── captured_pages/
-├── llm_hosting/
-└── llm_extend_applicant_data.json
+â”œâ”€â”€ capture.py
+â”œâ”€â”€ scrape.py
+â”œâ”€â”€ clean.py
+â”œâ”€â”€ requirements.txt
+â”œâ”€â”€ applicant_data.json
+â”œâ”€â”€ screenshot.jpg
+â”œâ”€â”€ captured_pages/
+â”œâ”€â”€ llm_hosting/
+â””â”€â”€ llm_extend_applicant_data.json
 ```
 
 ## Setup on Windows
@@ -112,10 +112,10 @@ python verify_llm_output.py
 ### Cleaning edge cases / remaining imperfections
 The canonical/post-processing layer handles common abbreviations and spelling variants, but a tiny local model can still produce imperfect mappings for rare interdisciplinary programs, schools with multiple campuses, abbreviations that are ambiguous across institutions, or program names whose official title differs substantially from applicant wording. The original `program_name`, `university`, `raw_program_text`, and `raw_listing_text` fields are retained so these cases can be audited and canonical lists can be extended without losing source traceability.
 
-## Known Bugs / Remaining Work
+## Known Bugs / Limitations
 - GradCafe is a live website, so markup and pagination controls can change. The parser therefore uses semantic table headers and a generic fallback, but a future layout change may require updating selectors.
 - Cloudflare may still challenge an attached browser session. The program intentionally stops instead of bypassing the restriction.
-- The local TinyLlama stage still depends on successful installation of `llama-cpp-python` on the grader/student platform; setup steps and the Python 3.13 compatibility adaptation are documented in `LLM_SETUP_WINDOWS.md` and `llm_hosting/LOCAL_CHANGES.md`.
+- The local TinyLlama stage was successfully installed and run under Python 3.13 using the CPU build of `llama-cpp-python`. The reproducible setup is documented in `LLM_SETUP_WINDOWS.md` and `llm_hosting/LOCAL_CHANGES.md`.
 
 ## Final validation before submission
 
@@ -132,3 +132,57 @@ Before submission, verify that the final repository contains the required raw JS
 The scraper writes a local `capture_state.json` after each successfully parsed page. It stores the exact next GradCafe cursor URL so an interrupted run can continue from that cursor instead of starting from whichever browser tab Selenium happens to attach to. The state file is intentionally excluded from Git because it is runtime state, not a deliverable.
 
 The capture helper also refuses to proceed when more than one GradCafe `/survey` tab is open. This avoids a failure mode observed during development where a restart attached to an older tab and reread many already-collected rows. `inspect_gradcafe_tabs.py` can be used to list the currently attached Chrome tabs and decode GradCafe cursor metadata for debugging.
+
+## Final LLM run and validation
+
+The final raw dataset contains 30,011 GradCafe records. The local TinyLlama
+standardization stage reduced these to 12,636 unique program/university inputs
+through caching and processed all 12,636 inputs with two worker processes.
+
+The adapted cleaner preserves every original scraped field and appends:
+
+- `llm-generated-program`
+- `llm-generated-university`
+
+A real-data smoke test and subsequent full-dataset quality audit showed that the
+small local model could occasionally introduce semantic drift. I therefore
+added conservative deterministic post-processing that preserves source
+acronyms, recognizes selected university abbreviations/canonical spellings,
+compares normalized semantic terms, and falls back to the original parsed value
+when a proposed model change is insufficiently supported.
+
+After the full model run, a stricter post-processing pass rejected 2,111
+questionable program candidates and 990 questionable university candidates
+without rerunning the model.
+
+Final validation results:
+
+- 30,011 raw rows
+- 30,011 LLM-extended rows
+- zero missing LLM-generated keys
+- zero empty generated program values
+- zero unknown/empty generated university values
+- zero modifications to any original scraped field
+- valid JSON
+- previously identified semantic-drift regressions eliminated
+
+The GGUF model weights and local virtual environment are intentionally excluded
+from Git because they are large and reproducible from the provided requirements
+and setup files.
+
+### Data limitations
+
+The captured public survey-listing pages did not expose GPA, GRE values,
+student type, or program-start semester/year, so those fields remain `null`
+rather than being fabricated.
+
+The captured listing blocks also did not expose applicant comment bodies. An
+earlier parser fallback interpreted the decision fragment `Wait listed on` as a
+comment for 2,585 rows. Those values were corrected to `null`, the parser was
+regression-tested, and the raw listing text remains preserved for traceability.
+
+During collection, a malformed checkpoint was handled conservatively by
+excluding the suspect records and continuing collection into older genuine
+public GradCafe entries. No records were fabricated. The final dataset contains
+30,011 unique non-null result URLs.
+

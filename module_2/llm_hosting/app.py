@@ -242,19 +242,11 @@ def _safe_program_output(source: str, candidate: str) -> str:
     if source_terms == candidate_terms:
         return candidate
 
-    union = source_terms | candidate_terms
-    overlap = len(source_terms & candidate_terms) / max(1, len(union))
-
-    source_norm = " ".join(sorted(source_terms))
-    candidate_norm = " ".join(sorted(candidate_terms))
-    sequence_similarity = difflib.SequenceMatcher(
-        None, source_norm, candidate_norm
-    ).ratio()
-
-    # Conservative threshold:
-    # Communications -> Communication passes.
-    # Geological Sciences -> Biological Sciences fails.
-    if overlap >= 0.50 or sequence_similarity >= 0.90:
+    # Only accept program changes that preserve the same normalized
+    # semantic terms. This still allows harmless singularization/case cleanup
+    # such as Communications -> Communication, while rejecting expansions,
+    # dropped specializations, and model-added institutions.
+    if source_terms == candidate_terms:
         return candidate
 
     return source
@@ -324,16 +316,11 @@ def _safe_university_output(source: str, candidate: str) -> str:
     }
 
     if source_terms and candidate_terms:
-        union = source_terms | candidate_terms
-        overlap = len(source_terms & candidate_terms) / max(1, len(union))
-
-        source_norm = " ".join(sorted(source_terms))
-        candidate_norm = " ".join(sorted(candidate_terms))
-        sequence_similarity = difflib.SequenceMatcher(
-            None, source_norm, candidate_norm
-        ).ratio()
-
-        if overlap >= 0.50 or sequence_similarity >= 0.90:
+        # Generic institution words such as University/College are removed
+        # above. Require the remaining identifying terms to agree exactly.
+        # Thus Yale -> Yale University is allowed, while
+        # Yale -> Philadelphia, Yale is rejected.
+        if source_terms == candidate_terms:
             return candidate_value
 
     # If the model mutation is questionable, preserve the cleaned source.

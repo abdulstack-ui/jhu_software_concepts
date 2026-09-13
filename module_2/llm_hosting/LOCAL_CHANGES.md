@@ -15,3 +15,23 @@ Local adaptations were required because the live 2026 GradCafe page and the stud
 6. `requirements.txt` updates `llama-cpp-python` from the instructor's old `<0.3.0` constraint to a current 0.3.x release and points pip at the project's CPU wheel index. This is intended for the student's Python 3.13 Windows environment.
 
 No applicant outcomes, dates, scores, comments, raw program text, or university values are overwritten. The LLM output is appended only in `llm-generated-program` and `llm-generated-university`.
+
+## Final full-dataset validation
+
+The adapted implementation was run against the final 30,011-row GradCafe
+dataset using TinyLlama-1.1B-Chat-v1.0 Q4_K_M.
+
+The final run processed 12,636 unique cached inputs. Real-data testing prompted
+additional deterministic safeguards against semantic drift. These safeguards
+preserve original fields, protect acronyms, recognize selected university
+abbreviations/canonical names, require conservative semantic agreement for
+model-generated changes, and otherwise fall back to the source value.
+
+A strict post-processing pass rejected 2,111 questionable program candidates
+and 990 questionable university candidates. Final validation found zero
+missing generated fields, zero empty standardized values, and zero changes to
+the original scraped fields.
+
+Model weights and the local virtual environment are intentionally excluded from
+Git.
+
