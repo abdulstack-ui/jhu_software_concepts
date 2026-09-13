@@ -157,6 +157,188 @@ def _post_normalize_university(uni: str) -> str:
     return _best_match(u, CANON_UNIS, cutoff=0.86) or u or "Unknown"
 
 
+
+def _canon_exact(name: str, candidates: List[str]) -> str | None:
+    """Return canonical spelling for an exact case-insensitive match."""
+    target = (name or "").strip().casefold()
+    if not target:
+        return None
+    for candidate in candidates:
+        if candidate.strip().casefold() == target:
+            return candidate
+    return None
+
+
+def _normalized_terms(text: str, drop_degrees: bool = False) -> List[str]:
+    """Create conservative comparison terms for semantic-drift checks."""
+    words = re.findall(r"[A-Za-z0-9]+", text or "")
+    out: List[str] = []
+
+    degree_words = {
+        "phd", "ma", "ms", "mfa", "mba", "jd",
+        "master", "masters", "doctoral", "doctorate"
+    }
+
+    for word in words:
+        token = word.casefold()
+
+        if drop_degrees and token in degree_words:
+            continue
+
+        # Very light normalization so Communications ~= Communication
+        # and Sciences ~= Science without doing aggressive stemming.
+        if len(token) > 4 and token.endswith("ies"):
+            token = token[:-3] + "y"
+        elif (
+            len(token) > 4
+            and token.endswith("s")
+            and not token.endswith(("ss", "us", "is"))
+        ):
+            token = token[:-1]
+
+        out.append(token)
+
+    return out
+
+
+def _polish_program_case(candidate: str, source: str) -> str:
+    """Restore source acronyms and normal conjunction capitalization."""
+    value = (candidate or "").strip()
+
+    value = re.sub(
+        r"\b(And|Of|In|For|To|At)\b",
+        lambda m: m.group(1).lower(),
+        value,
+    )
+
+    # Preserve acronyms that were present in the source: MFA, MS, MBA, etc.
+    for acronym in re.findall(r"\b[A-Z][A-Z0-9&-]{1,}\b", source or ""):
+        value = re.sub(
+            rf"\b{re.escape(acronym)}\b",
+            acronym,
+            value,
+            flags=re.IGNORECASE,
+        )
+
+    return value
+
+
+def _safe_program_output(source: str, candidate: str) -> str:
+    """Accept LLM program changes only when they remain close to the source."""
+    source = (source or "").strip()
+    candidate = _polish_program_case(candidate or "", source)
+
+    if not source:
+        return candidate
+    if not candidate:
+        return source
+
+    source_terms = set(_normalized_terms(source, drop_degrees=True))
+    candidate_terms = set(_normalized_terms(candidate, drop_degrees=True))
+
+    if not source_terms or not candidate_terms:
+        return source
+
+    if source_terms == candidate_terms:
+        return candidate
+
+    union = source_terms | candidate_terms
+    overlap = len(source_terms & candidate_terms) / max(1, len(union))
+
+    source_norm = " ".join(sorted(source_terms))
+    candidate_norm = " ".join(sorted(candidate_terms))
+    sequence_similarity = difflib.SequenceMatcher(
+        None, source_norm, candidate_norm
+    ).ratio()
+
+    # Conservative threshold:
+    # Communications -> Communication passes.
+    # Geological Sciences -> Biological Sciences fails.
+    if overlap >= 0.50 or sequence_similarity >= 0.90:
+        return candidate
+
+    return source
+
+
+KNOWN_UNIVERSITY_ABBREVIATIONS: Dict[str, str] = {
+    "MIT": "Massachusetts Institute of Technology",
+    "JHU": "Johns Hopkins University",
+    "UBC": "University of British Columbia",
+    "UCLA": "University of California, Los Angeles",
+    "UCSF": "University of California, San Francisco",
+    "UCSD": "University of California, San Diego",
+    "UCSC": "University of California, Santa Cruz",
+    "UCI": "University of California, Irvine",
+    "UCD": "University of California, Davis",
+    "UCR": "University of California, Riverside",
+    "UCSB": "University of California, Santa Barbara",
+}
+
+
+def _safe_university_output(source: str, candidate: str) -> str:
+    """Prefer known/canonical universities and reject suspicious mutations."""
+    source = (source or "").strip()
+    candidate = (candidate or "").strip()
+
+    if not source:
+        return candidate or "Unknown"
+
+    # Handle a trustworthy acronym supplied in parentheses.
+    parenthetical = re.search(r"\(([^()]*)\)\s*$", source)
+    if parenthetical:
+        abbreviation = parenthetical.group(1).strip().upper()
+        if abbreviation in KNOWN_UNIVERSITY_ABBREVIATIONS:
+            target = KNOWN_UNIVERSITY_ABBREVIATIONS[abbreviation]
+            return _canon_exact(target, CANON_UNIS) or target
+
+    # Remove noisy trailing parenthetical material before comparison.
+    base_source = re.sub(r"\s*\([^()]*\)\s*$", "", source).strip()
+
+    # If the cleaned source itself is canonical, trust it.
+    canonical_source = _canon_exact(base_source, CANON_UNIS)
+    if canonical_source:
+        return canonical_source
+
+    canonical_raw = _canon_exact(source, CANON_UNIS)
+    if canonical_raw:
+        return canonical_raw
+
+    canonical_candidate = _canon_exact(candidate, CANON_UNIS)
+    candidate_value = canonical_candidate or candidate
+
+    if not candidate_value:
+        return base_source or source
+
+    stopwords = {
+        "the", "university", "college", "of", "at", "and",
+        "institute", "technology", "school"
+    }
+
+    source_terms = {
+        t for t in _normalized_terms(base_source)
+        if t not in stopwords
+    }
+    candidate_terms = {
+        t for t in _normalized_terms(candidate_value)
+        if t not in stopwords
+    }
+
+    if source_terms and candidate_terms:
+        union = source_terms | candidate_terms
+        overlap = len(source_terms & candidate_terms) / max(1, len(union))
+
+        source_norm = " ".join(sorted(source_terms))
+        candidate_norm = " ".join(sorted(candidate_terms))
+        sequence_similarity = difflib.SequenceMatcher(
+            None, source_norm, candidate_norm
+        ).ratio()
+
+        if overlap >= 0.50 or sequence_similarity >= 0.90:
+            return candidate_value
+
+    # If the model mutation is questionable, preserve the cleaned source.
+    return base_source or source
+
 def _program_text_from_row(row: Dict[str, Any]) -> str:
     """Build one LLM input while preserving the original row unchanged.
 
@@ -233,8 +415,17 @@ def standardize_rows(rows: Iterable[Dict[str, Any]], workers: int = 1) -> List[D
     out: List[Dict[str, Any]] = []
     for row, text in zip(rows_list, texts):
         result = results[text]
-        row["llm-generated-program"] = result["standardized_program"]
-        row["llm-generated-university"] = result["standardized_university"]
+        source_program = str(row.get("program_name") or "").strip()
+        source_university = str(row.get("university") or "").strip()
+
+        row["llm-generated-program"] = _safe_program_output(
+            source_program,
+            result["standardized_program"],
+        )
+        row["llm-generated-university"] = _safe_university_output(
+            source_university,
+            result["standardized_university"],
+        )
         out.append(row)
     return out
 

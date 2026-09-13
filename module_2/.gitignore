@@ -27,3 +27,4 @@ capture_state.json
 
 # Runtime scraper state
 capture_state.json
+llm_hosting/sample_out.json
