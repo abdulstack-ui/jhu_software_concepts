@@ -178,6 +178,14 @@ def _extract_comments(decision_cell: Tag | None, summary_bits: list[str]) -> str
     ):
         return None
 
+    # Reject leftover decision-status fragments.
+    if re.fullmatch(
+        r"(?:Accepted|Rejected|Interview|Wait\s*listed|Waitlisted)(?:\s+on)?",
+        remainder,
+        re.IGNORECASE,
+    ):
+        return None
+
     return remainder if len(remainder) >= 8 else None
 
 
