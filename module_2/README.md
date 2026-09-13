@@ -106,7 +106,7 @@ Setup and smoke-test commands are in `LLM_SETUP_WINDOWS.md`. After raw scraping 
 ```powershell
 cd C:\Users\DELL\Desktop\jhu_software_concepts\module_2
 python clean.py --input applicant_data.json --output llm_extend_applicant_data.json --workers 2
-python verify_llm_output.py
+python verify_llm_output.py applicant_data.json llm_extend_applicant_data.json
 ```
 
 ### Cleaning edge cases / remaining imperfections
