@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Local capture artifacts; final JSON deliverables are committed separately.
+captured_pages/
+
+# Local LLM artifacts (large/reconstructable; do not commit model weights)
+llm_hosting/models/
+llm_hosting/.venv/
+*.gguf
+
+# Temporary cleaning outputs
+llm_hosting/out.json
+llm_hosting/*.jsonl
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local scraper resume state
+capture_state.json
+
+# Runtime scraper state
+capture_state.json

@@ -1,0 +1,3 @@
+beautifulsoup4>=4.12
+selenium>=4.20
+-r llm_hosting/requirements.txt
