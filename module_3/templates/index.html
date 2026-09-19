@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>GradCafe Analysis</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <main class="page-shell">
+        <header class="hero">
+            <div>
+                <p class="byline">Abdullah Sarwar</p>
+                <p class="eyebrow">Johns Hopkins · Module 3</p>
+                <h1>GradCafe Application Analysis</h1>
+                <p class="subtitle">Live analysis from the PostgreSQL <code>applicants</code> table using SQLAlchemy.</p>
+            </div>
+            <form method="post" action="{{ url_for('update_analysis') }}">
+                <button class="button primary" type="submit">Update Analysis</button>
+            </form>
+        </header>
+
+        <section class="control-note">
+            <strong>Update Analysis</strong> re-queries PostgreSQL and displays the latest records already in the database. It does not start a scrape.
+        </section>
+
+        {% if status %}
+            <div class="message success" role="status">{{ status }}</div>
+        {% endif %}
+        {% if error %}
+            <div class="message error" role="alert">{{ error }}</div>
+        {% endif %}
+
+        <div class="meta-row">
+            <span>11 analyses</span>
+            <span>Last page query: {{ updated_at }}</span>
+        </div>
+
+        <section class="analysis-grid" aria-label="Database analyses">
+            {% for analysis in analyses %}
+                <article class="analysis-card">
+                    <div class="question-number">Q{{ analysis.number }}</div>
+                    <h2>{{ analysis.question }}</h2>
+                    <p class="result">{{ analysis.result }}</p>
+                    <p class="explanation">{{ analysis.explanation }}</p>
+                </article>
+            {% endfor %}
+        </section>
+
+        <footer>
+            Results are computed dynamically from the current PostgreSQL database. GradCafe data is self-reported and should not be interpreted as a representative sample of all graduate applicants.
+        </footer>
+    </main>
+</body>
+</html>

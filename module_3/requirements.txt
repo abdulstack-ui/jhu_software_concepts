@@ -3,3 +3,4 @@ selenium>=4.20
 -r llm_hosting/requirements.txt
 psycopg[binary]>=3.2,<4
 SQLAlchemy>=2,<3
+Flask>=3,<4
