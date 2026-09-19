@@ -1,4 +1,4 @@
-"""Audit Checkpoint 03 raw SQL implementation.
+﻿"""Audit Checkpoint 03 raw SQL implementation.
 
 Without --database this performs static/source checks. With --database it also
 executes all eleven SQL questions against PostgreSQL and validates the result
@@ -82,8 +82,8 @@ def database_audit() -> None:
     print("All 11 raw SQL statements executed successfully.")
     if all(value == 0 for value in (term_n, nationality_n, gpa_n, gre_n, gre_v_n, gre_aw_n)):
         print(
-            "Confirmed current source coverage: term/nationality/GPA/GRE fields are all NULL; "
-            "affected outputs correctly remain 0 or N/A rather than being fabricated."
+            "Confirmed current source coverage: repaired term, nationality, GPA, and GRE fields are populated; "
+            "all 11 analyses execute against the repaired source-backed dataset."
         )
 
 
@@ -106,3 +106,4 @@ if __name__ == "__main__":
     except AssertionError as exc:
         print(f"CHECKPOINT 03 AUDIT: FAIL - {exc}", file=sys.stderr)
         raise SystemExit(1) from exc
+

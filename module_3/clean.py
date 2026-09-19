@@ -60,6 +60,22 @@ def _to_float(value: Any, *, field_name: str) -> float | None:
     return float(text)
 
 
+def _to_gre_quantitative(value: Any) -> float | None:
+    """Keep only values that can represent a GRE Quantitative section score.
+
+    GradCafe's source GRE field can contain mixed self-reported semantics, including
+    combined totals above the Quantitative section range. Module 3 defines `gre`
+    specifically as GRE Quantitative, so values outside 130-170 are preserved in
+    the raw source JSON but treated as unavailable in the database-ready output.
+    """
+    score = _to_float(value, field_name="gre_score")
+    if score is None:
+        return None
+    if 130.0 <= score <= 170.0:
+        return score
+    return None
+
+
 def _to_iso_date(value: Any) -> str | None:
     """Convert a supplied GradCafe date to YYYY-MM-DD without guessing."""
     text = _clean_text(value)
@@ -115,7 +131,7 @@ def clean_record(record: Dict[str, Any]) -> Dict[str, Any]:
         "term": _clean_text(record.get("program_start")),
         "us_or_international": _clean_text(record.get("student_type")),
         "gpa": _to_float(record.get("gpa"), field_name="gpa"),
-        "gre": _to_float(record.get("gre_score"), field_name="gre_score"),
+        "gre": _to_gre_quantitative(record.get("gre_score")),
         "gre_v": _to_float(record.get("gre_verbal"), field_name="gre_verbal"),
         "gre_aw": _to_float(record.get("gre_aw"), field_name="gre_aw"),
         "degree": _clean_text(record.get("degree")),

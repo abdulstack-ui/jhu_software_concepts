@@ -72,6 +72,16 @@ def _select_single_gradcafe_tab(driver: webdriver.Chrome) -> None:
     driver.switch_to.window(tabs[0][0])
 
 
+def _is_root_survey_url(url: str) -> bool:
+    parsed = urlparse(url)
+    return (
+        "thegradcafe.com" in parsed.netloc.lower()
+        and parsed.path.rstrip("/") == "/survey"
+        and not parsed.query
+        and not parsed.fragment
+    )
+
+
 def _contains_next_word(text: str) -> bool:
     words = text.replace("→", " next ").replace("›", " next ").replace("»", " next ").split()
     return "next" in words
@@ -154,6 +164,7 @@ def capture(
     resume: bool,
     novelty_window: int,
     min_new_ratio: float,
+    require_root_start: bool,
 ) -> None:
     options = webdriver.ChromeOptions()
     options.add_experimental_option("debuggerAddress", "127.0.0.1:9222")
@@ -162,6 +173,14 @@ def capture(
     # Never silently choose among several stale GradCafe tabs.
     _select_single_gradcafe_tab(driver)
     print(f"Using browser tab: {driver.current_url}")
+
+    if require_root_start and not _is_root_survey_url(driver.current_url):
+        raise RuntimeError(
+            "Recovery capture must begin from exactly https://www.thegradcafe.com/survey "
+            "with no ?cursor=... query string. Navigate the debug Chrome tab to the root "
+            "survey URL and rerun the same command. If recovery files already exist, do NOT "
+            "delete them; the saved state will resume from the correct cursor after this check."
+        )
 
     # If a prior run saved the exact next cursor, resume there in the already-verified browser.
     state = _load_state(state_file)
@@ -285,6 +304,14 @@ def main() -> None:
         default=0.20,
         help="Stop if fewer than this fraction of recently parsed rows are new",
     )
+    parser.add_argument(
+        "--require-root-start",
+        action="store_true",
+        help=(
+            "Refuse to start unless the selected debug-Chrome tab is exactly "
+            "https://www.thegradcafe.com/survey with no cursor. Recommended for recovery captures."
+        ),
+    )
     args = parser.parse_args()
 
     if args.target <= 0:
@@ -298,17 +325,26 @@ def main() -> None:
     if not 0 <= args.min_new_ratio <= 1:
         parser.error("--min-new-ratio must be between 0 and 1")
 
-    capture(
-        args.target,
-        args.output,
-        args.pages_dir,
-        args.state_file,
-        args.delay_min,
-        args.delay_max,
-        not args.no_resume,
-        args.novelty_window,
-        args.min_new_ratio,
-    )
+    try:
+        capture(
+            args.target,
+            args.output,
+            args.pages_dir,
+            args.state_file,
+            args.delay_min,
+            args.delay_max,
+            not args.no_resume,
+            args.novelty_window,
+            args.min_new_ratio,
+            args.require_root_start,
+        )
+    except KeyboardInterrupt:
+        print("\nCapture interrupted by user.")
+        print(
+            "Progress through the last completed page was already written to the output and "
+            "state files. Do NOT delete the recovery files. Reopen the root /survey page in "
+            "debug Chrome and rerun the same command to resume."
+        )
 
 
 if __name__ == "__main__":

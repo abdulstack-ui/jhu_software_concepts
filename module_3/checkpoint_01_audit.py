@@ -67,6 +67,22 @@ def number(value: Any) -> float | None:
     return float(str(value).replace(",", ""))
 
 
+def expected_gre_quantitative(value: Any) -> float | None:
+    """Mirror clean.py's conservative GRE Quantitative rule.
+
+    The raw GradCafe GRE field sometimes contains combined/other scores above the
+    130-170 GRE Quantitative section range. Those raw values remain preserved in
+    the source JSON, but Module 3's database-ready `gre` field is specifically
+    GRE Quantitative, so out-of-range values are represented as missing.
+    """
+    score = number(value)
+    if score is None:
+        return None
+    if 130.0 <= score <= 170.0:
+        return score
+    return None
+
+
 def expected_program(row: dict[str, Any]) -> str | None:
     university = text(row.get("university"))
     program = text(row.get("raw_program_text")) or text(row.get("program_name"))
@@ -100,7 +116,7 @@ def main() -> int:
         assert out["term"] == text(src.get("program_start")), f"Row {i}: term mismatch"
         assert out["us_or_international"] == text(src.get("student_type")), f"Row {i}: nationality mismatch"
         assert out["gpa"] == number(src.get("gpa")), f"Row {i}: GPA mismatch"
-        assert out["gre"] == number(src.get("gre_score")), f"Row {i}: GRE Q mismatch"
+        assert out["gre"] == expected_gre_quantitative(src.get("gre_score")), f"Row {i}: GRE Q mismatch"
         assert out["gre_v"] == number(src.get("gre_verbal")), f"Row {i}: GRE V mismatch"
         assert out["gre_aw"] == number(src.get("gre_aw")), f"Row {i}: GRE AW mismatch"
         assert out["degree"] == text(src.get("degree")), f"Row {i}: degree mismatch"
@@ -116,7 +132,7 @@ def main() -> int:
     print(f"Rows verified: {len(cleaned):,}")
     print(f"Unique p_id values: {len(seen_ids):,}")
     print(f"Unique URLs: {len(seen_urls):,}")
-    print("No GPA/GRE/term/nationality/degree values were inferred beyond source fields.")
+    print("No GPA/term/nationality/degree values were inferred; GRE Quantitative keeps only source scores in the valid 130-170 section range.")
     return 0
 
 

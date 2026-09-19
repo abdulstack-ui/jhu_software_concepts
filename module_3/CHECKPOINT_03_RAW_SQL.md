@@ -1,4 +1,4 @@
-# Checkpoint 03 - Raw SQL analysis
+﻿# Checkpoint 03 - Raw SQL analysis
 
 This checkpoint implements the eleven required raw-SQL analyses in `query_data.py`: assignment questions Q1-Q9 plus two student-defined questions. The implementation uses psycopg and executable PostgreSQL `SELECT` statements only; SQLAlchemy is intentionally reserved for Checkpoint 04.
 
@@ -21,4 +21,5 @@ python checkpoint_03_audit.py --database
 
 ## Own questions
 
-Q10 asks what percentage of records with a usable status are accepted. Q11 asks which five LLM-standardized universities have the most application records. These questions were chosen because they are meaningful with the fields actually present in the scraped dataset rather than relying on unavailable term/GPA/GRE information.
+Q10 asks what percentage of records with a usable status are accepted. Q11 asks which five LLM-standardized universities have the most application records. These questions were chosen because they are meaningful with the fields actually present in the scraped dataset and complement the required term/GPA/GRE analyses.
+

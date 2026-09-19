@@ -1,0 +1,7 @@
+# Checkpoint 03A — Source-data repair
+
+The original parser treated each HTML `<tr>` as an independent application row. Current GradCafe markup instead represents one application as a group: a primary row containing school/program/date/decision, followed by a metadata row containing term, nationality, GPA/GRE badges, and sometimes a separate comment row. As a result, the original 30,011-row dataset lost source-visible metadata even though no values were fabricated.
+
+This repair changes `scrape.py` to associate continuation rows with the preceding `/result/<id>` application row. Degree is read directly from the source program cell when available, and term, nationality, GPA, GRE Quantitative, GRE Verbal, GRE Analytical Writing, and comments are extracted only from the source-visible continuation rows. The scraper also no longer imports Module 3's database `clean.py`; acquisition retains the Module 2 source-record schema, while Module 3 cleaning remains a separate later transformation.
+
+`test_live_parser.py` validates one currently open GradCafe page without navigating or modifying data. `repair_from_captured_pages.py` reparses locally saved HTML pages and writes candidate repaired JSON files without overwriting originals. It only repairs the exact URLs already present in the existing dataset, requires complete URL coverage, checks stable identity fields, and reuses existing LLM-standardized values only when the source university/program still match.

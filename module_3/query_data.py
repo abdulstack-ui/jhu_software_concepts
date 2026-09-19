@@ -1,4 +1,4 @@
-"""Run the Module 3 analysis questions with raw PostgreSQL SQL.
+﻿"""Run the Module 3 analysis questions with raw PostgreSQL SQL.
 
 This file intentionally uses psycopg cursors and SQL strings only.  The
 SQLAlchemy versions required later in the assignment belong in orm_queries.py.
@@ -278,7 +278,7 @@ QUERIES: tuple[QuerySpec, ...] = (
         10,
         "Own question: What percentage of all records with a usable status are accepted?",
         Q10_SQL,
-        "This analysis uses the well-populated status field and avoids relying on unavailable term/GPA/GRE data.",
+        "This analysis uses the status field directly and calculates the share of records with a usable status that are classified as accepted.",
         format_percentage,
     ),
     QuerySpec(
@@ -343,3 +343,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

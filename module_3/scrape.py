@@ -9,7 +9,6 @@ from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup, Tag
 
-from clean import clean_data
 
 BASE_URL = "https://www.thegradcafe.com/"
 SURVEY_URL = "https://www.thegradcafe.com/survey"
@@ -69,6 +68,27 @@ def _clean_cell_text(node: Tag | None) -> str | None:
         return None
     text = node.get_text(" ", strip=True)
     return text or None
+
+
+def _normalize_scraped_record(record: Dict[str, Any]) -> Dict[str, Any]:
+    """Normalize whitespace while preserving the Module 2 source-record schema.
+
+    This deliberately does not import Module 3's database cleaner. The scraper
+    must keep source fields such as ``program_start`` and ``student_type`` intact
+    so the same acquisition code can be reused by the Pull Data feature.
+    """
+    cleaned = dict(FIELDS)
+    for field in FIELDS:
+        value = record.get(field)
+        if isinstance(value, str):
+            value = re.sub(r"\s+", " ", value).strip() or None
+        cleaned[field] = value
+    return cleaned
+
+
+def clean_data(records: Iterable[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Return normalized Module 2-shaped records without inferring missing data."""
+    return [_normalize_scraped_record(record) for record in records]
 
 
 def _status(text: str) -> str | None:
@@ -205,80 +225,148 @@ def _find_results_table(soup: BeautifulSoup) -> Tag | None:
     return None
 
 
-def _parse_table_row(row: Tag, page_url: str | None = None) -> Dict[str, Any] | None:
-    cells = row.find_all("td", recursive=False)
+def _extract_program_and_degree(program_cell: Tag) -> tuple[str | None, str | None]:
+    """Read program and degree from the source cell without inventing either.
+
+    Current GradCafe markup stores the program name and degree in separate
+    ``span`` elements. A conservative text fallback is retained for older saved
+    pages.
+    """
+    spans = [
+        s.get_text(" ", strip=True)
+        for s in program_cell.find_all("span")
+        if s.get_text(" ", strip=True)
+    ]
+    if len(spans) >= 2:
+        program = spans[0]
+        degree = spans[-1]
+        return program or None, degree or None
+
+    raw_program = _clean_cell_text(program_cell)
+    degree = _infer_degree(raw_program, raw_program or "")
+    return _program_without_degree(raw_program), degree
+
+
+def _parse_metadata_text(text: str) -> dict[str, str | None]:
+    """Extract only explicitly displayed metadata badges from a listing group."""
+    return {
+        "program_start": _match(r"\b((?:Fall|Spring|Summer|Winter)\s+\d{4})\b", text),
+        "student_type": _match(r"\b(International|American|Other)\b", text),
+        "gpa": _match(r"\bGPA\s*([0-4](?:\.\d{1,3})?)\b", text),
+        "gre_verbal": _match(r"\bGRE\s*(?:V|Verbal)\s*[:=]?\s*(\d{2,3})\b", text),
+        "gre_aw": _match(
+            r"\bGRE\s*(?:AW|AWA|Analytical\s+Writing)\s*[:=]?\s*(\d(?:\.\d{1,2})?)\b",
+            text,
+        ),
+        # On GradCafe the unqualified "GRE ###" badge is the quantitative score.
+        "gre_score": _match(r"\bGRE\s*(?!V\b|Verbal\b|AW\b|AWA\b)(\d{2,3})\b", text),
+    }
+
+
+def _extract_group_comments(continuation_rows: list[Tag]) -> str | None:
+    """Return applicant-provided comment text from the continuation rows only."""
+    candidates: list[str] = []
+    for row in continuation_rows:
+        for paragraph in row.find_all("p"):
+            value = paragraph.get_text(" ", strip=True)
+            if value:
+                candidates.append(value)
+    if not candidates:
+        return None
+    return max(candidates, key=len)
+
+
+def _parse_result_group(
+    primary_row: Tag,
+    continuation_rows: list[Tag],
+    page_url: str | None = None,
+) -> Dict[str, Any] | None:
+    """Parse one application plus its metadata/comment continuation rows."""
+    cells = primary_row.find_all("td", recursive=False)
     if len(cells) < 4:
         return None
 
     university = _clean_cell_text(cells[0])
+    program_name, degree = _extract_program_and_degree(cells[1])
     raw_program = _clean_cell_text(cells[1])
     date_added = _clean_cell_text(cells[2])
     decision_text = _clean_cell_text(cells[3]) or ""
-    raw = row.get_text(" ", strip=True)
 
-    status = _status(decision_text or raw)
+    group_rows = [primary_row, *continuation_rows]
+    group_text = " ".join(row.get_text(" ", strip=True) for row in group_rows)
+    metadata_text = " ".join(row.get_text(" ", strip=True) for row in continuation_rows)
+    metadata = _parse_metadata_text(metadata_text)
+
+    status = _status(decision_text or group_text)
     decision_date = _match(
         r"\b(?:Accepted|Rejected|Interview|Wait\s*listed|Waitlisted)\s+on\s+([A-Za-z]{3,9}\s+\d{1,2}(?:,\s*\d{4})?)",
         decision_text,
     )
-    program_start = _match(r"\b((?:Fall|Spring|Summer|Winter)\s+\d{4})\b", decision_text)
-    student_type = _match(r"\b(International|American|Other)\b", decision_text)
-    gpa = _match(r"\bGPA\s*([0-4](?:\.\d{1,3})?)\b", decision_text)
-    gre_v = _match(r"\bGRE\s*(?:V|Verbal)\s*[:=]?\s*(\d{2,3})\b", decision_text)
-    gre_aw = _match(r"\bGRE\s*(?:AW|AWA|Analytical\s+Writing)\s*[:=]?\s*(\d(?:\.\d)?)\b", decision_text)
-    gre_total = _match(r"\bGRE(?:\s*(?:Total|Score))?\s*[:=]?\s*(\d{3})\b", decision_text)
-    degree = _infer_degree(raw_program, raw)
-
-    summary_bits = [
-        university or "",
-        raw_program or "",
-        date_added or "",
-        status or "",
-        decision_date or "",
-        program_start or "",
-        student_type or "",
-        f"GPA {gpa}" if gpa else "",
-        f"GRE V {gre_v}" if gre_v else "",
-        f"GRE AW {gre_aw}" if gre_aw else "",
-        f"GRE {gre_total}" if gre_total else "",
-    ]
 
     record = dict(FIELDS)
     record.update(
         {
-            "program_name": _program_without_degree(raw_program),
+            "program_name": program_name,
             "university": university,
-            "comments": _extract_comments(cells[3], summary_bits),
+            "comments": _extract_group_comments(continuation_rows),
             "date_added": date_added,
-            "entry_url": _extract_entry_url(row, page_url),
+            "entry_url": _extract_entry_url(primary_row, page_url),
             "source_page_url": page_url,
             "applicant_status": status,
             "decision_date": decision_date,
-            "program_start": program_start,
-            "student_type": student_type,
-            "gre_score": gre_total,
-            "gre_verbal": gre_v,
+            "program_start": metadata["program_start"],
+            "student_type": metadata["student_type"],
+            "gre_score": metadata["gre_score"],
+            "gre_verbal": metadata["gre_verbal"],
             "degree": degree,
-            "gpa": gpa,
-            "gre_aw": gre_aw,
+            "gpa": metadata["gpa"],
+            "gre_aw": metadata["gre_aw"],
             "raw_program_text": raw_program,
-            "raw_listing_text": raw,
+            "raw_listing_text": group_text,
         }
     )
     return record
 
 
+def _parse_table_row(row: Tag, page_url: str | None = None) -> Dict[str, Any] | None:
+    """Compatibility helper for a single primary row.
+
+    Full parsing should use ``_parse_result_group`` so continuation metadata is
+    associated with the correct application.
+    """
+    return _parse_result_group(row, [], page_url)
+
 def _parse_semantic_table(soup: BeautifulSoup, page_url: str | None) -> list[Dict[str, Any]]:
     table = _find_results_table(soup)
     if table is None:
         return []
+
+    rows = [row for row in table.find_all("tr") if isinstance(row, Tag)]
     records: list[Dict[str, Any]] = []
-    for row in table.find_all("tr"):
-        rec = _parse_table_row(row, page_url)
+    index = 0
+
+    while index < len(rows):
+        row = rows[index]
+        has_result_link = row.find("a", href=re.compile(r"/result/\d+")) is not None
+        if not has_result_link:
+            index += 1
+            continue
+
+        continuation: list[Tag] = []
+        next_index = index + 1
+        while next_index < len(rows):
+            candidate = rows[next_index]
+            if candidate.find("a", href=re.compile(r"/result/\d+")) is not None:
+                break
+            continuation.append(candidate)
+            next_index += 1
+
+        rec = _parse_result_group(row, continuation, page_url)
         if rec and rec.get("university") and rec.get("raw_program_text"):
             records.append(rec)
-    return records
+        index = next_index
 
+    return records
 
 def _parse_generic_rows(soup: BeautifulSoup, page_url: str | None) -> list[Dict[str, Any]]:
     """Fallback for markup changes: find row-like containers with admissions vocabulary."""
