@@ -28,3 +28,14 @@ capture_state.json
 # Runtime scraper state
 capture_state.json
 llm_hosting/sample_out.json
+
+# Module 3 database credentials / local secrets
+.env
+.env.*
+!.env.example
+
+# Local inspection/debug artifacts
+result_page_sample.html
+
+# Final submission archive is generated separately
+module_3.zip

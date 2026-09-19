@@ -1,16 +1,33 @@
-Total records: 30,011
-program: 30,011 populated / 30,011
-comments: 0 populated / 30,011
-date_added: 30,011 populated / 30,011
-url: 30,011 populated / 30,011
-status: 30,011 populated / 30,011
-term: 0 populated / 30,011
-us_or_international: 0 populated / 30,011
-gpa: 0 populated / 30,011
-gre: 0 populated / 30,011
-gre_v: 0 populated / 30,011
-gre_aw: 0 populated / 30,011
-degree: 28,791 populated / 30,011
-llm_generated_program: 30,011 populated / 30,011
-llm_generated_university: 30,011 populated / 30,011
-duplicate URLs: 0
+Rows: 30,011
+
+Field completeness:
+  p_id                          30,011 / 30,011 (100.00%)
+  program                       30,011 / 30,011 (100.00%)
+  comments                           0 / 30,011 (  0.00%)
+  date_added                    30,011 / 30,011 (100.00%)
+  url                           30,011 / 30,011 (100.00%)
+  status                        30,011 / 30,011 (100.00%)
+  term                               0 / 30,011 (  0.00%)
+  us_or_international                0 / 30,011 (  0.00%)
+  gpa                                0 / 30,011 (  0.00%)
+  gre                                0 / 30,011 (  0.00%)
+  gre_v                              0 / 30,011 (  0.00%)
+  gre_aw                             0 / 30,011 (  0.00%)
+  degree                        28,791 / 30,011 ( 95.93%)
+  llm_generated_program         30,011 / 30,011 (100.00%)
+  llm_generated_university      30,011 / 30,011 (100.00%)
+
+Rows with wrong field set: 0
+Duplicate p_id values: 0
+Duplicate non-null URLs: 0
+
+ANALYSIS READINESS WARNING:
+  - term: 0 populated values. Questions 1, 4, 5, 6, 8, and 9 need term data.
+  - us_or_international: 0 populated values. Questions 2 and 4 need nationality classification.
+  - gpa: 0 populated values. Questions 3, 4, and 6 need GPA data.
+  - gre: 0 populated values. Question 3 needs GRE Quantitative data.
+  - gre_v: 0 populated values. Question 3 needs GRE Verbal data.
+  - gre_aw: 0 populated values. Question 3 needs GRE Analytical Writing data.
+
+The cleaned dataset is structurally valid, but these analyses cannot produce meaningful results until source-supported values are available.
+Do not fabricate or impute values to make the queries non-null.

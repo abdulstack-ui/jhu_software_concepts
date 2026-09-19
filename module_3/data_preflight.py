@@ -1,41 +1,40 @@
-"""Preflight checks for Module 3 source data.
+"""Preflight checks for the Module 3 database-ready dataset.
 
-This script exists to prevent silent submission of a database that cannot answer
-required analysis questions. It does not fabricate or infer missing applicant data.
+The script identifies missing analysis-critical data before SQL work begins. It
+never fabricates or infers applicant values.
 """
 from __future__ import annotations
 
 import json
-from collections import Counter
 from pathlib import Path
 from typing import Any
 
-DEFAULT_DATA = Path(__file__).with_name("llm_extend_applicant_data.json")
+DEFAULT_DATA = Path(__file__).with_name("cleaned_applicant_data.json")
 
-REQUIRED_KEYS = (
-    "program_name",
-    "university",
+REQUIRED_FIELDS = (
+    "p_id",
+    "program",
     "comments",
     "date_added",
-    "entry_url",
-    "applicant_status",
-    "program_start",
-    "student_type",
+    "url",
+    "status",
+    "term",
+    "us_or_international",
     "gpa",
-    "gre_score",
-    "gre_verbal",
+    "gre",
+    "gre_v",
     "gre_aw",
     "degree",
-    "llm-generated-program",
-    "llm-generated-university",
+    "llm_generated_program",
+    "llm_generated_university",
 )
 
 ANALYSIS_CRITICAL = {
-    "program_start": "Questions 1, 4, 5, 6, 8, and 9 need term data.",
-    "student_type": "Questions 2 and 4 need nationality classification.",
+    "term": "Questions 1, 4, 5, 6, 8, and 9 need term data.",
+    "us_or_international": "Questions 2 and 4 need nationality classification.",
     "gpa": "Questions 3, 4, and 6 need GPA data.",
-    "gre_score": "Question 3 needs GRE Quantitative data.",
-    "gre_verbal": "Question 3 needs GRE Verbal data.",
+    "gre": "Question 3 needs GRE Quantitative data.",
+    "gre_v": "Question 3 needs GRE Verbal data.",
     "gre_aw": "Question 3 needs GRE Analytical Writing data.",
 }
 
@@ -51,35 +50,46 @@ def audit(path: Path = DEFAULT_DATA) -> int:
 
     print(f"Rows: {len(rows):,}")
     print("\nField completeness:")
-    missing_keys = Counter()
     populated: dict[str, int] = {}
-    for key in REQUIRED_KEYS:
-        count = sum(_usable(row.get(key)) for row in rows)
-        populated[key] = count
+    for field in REQUIRED_FIELDS:
+        count = sum(_usable(row.get(field)) for row in rows)
+        populated[field] = count
         pct = 100 * count / len(rows) if rows else 0
-        print(f"  {key:28s} {count:7,d} / {len(rows):,} ({pct:6.2f}%)")
-        if any(key not in row for row in rows):
-            missing_keys[key] = sum(key not in row for row in rows)
+        print(f"  {field:28s} {count:7,d} / {len(rows):,} ({pct:6.2f}%)")
 
-    duplicate_urls = len(rows) - len({row.get("entry_url") for row in rows if _usable(row.get("entry_url"))})
-    null_urls = sum(not _usable(row.get("entry_url")) for row in rows)
-    print(f"\nNull/blank entry URLs: {null_urls:,}")
-    print(f"Duplicate non-null entry URLs: {duplicate_urls:,}")
+    wrong_schema = sum(set(row) != set(REQUIRED_FIELDS) for row in rows)
+    ids = [row.get("p_id") for row in rows]
+    urls = [row.get("url") for row in rows if _usable(row.get("url"))]
+    duplicate_ids = len(ids) - len(set(ids))
+    duplicate_urls = len(urls) - len(set(urls))
 
-    blockers = []
-    for key, reason in ANALYSIS_CRITICAL.items():
-        if populated.get(key, 0) == 0:
-            blockers.append((key, reason))
+    print(f"\nRows with wrong field set: {wrong_schema:,}")
+    print(f"Duplicate p_id values: {duplicate_ids:,}")
+    print(f"Duplicate non-null URLs: {duplicate_urls:,}")
+
+    structural_failures = wrong_schema or duplicate_ids or duplicate_urls
+    blockers = [
+        (field, reason)
+        for field, reason in ANALYSIS_CRITICAL.items()
+        if populated.get(field, 0) == 0
+    ]
+
+    if structural_failures:
+        print("\nFAIL: structural validation failed.")
+        return 1
 
     if blockers:
-        print("\nSUBMISSION BLOCKERS:")
-        for key, reason in blockers:
-            print(f"  - {key}: 0 populated values. {reason}")
-        print("\nDo not fabricate values. Recover them only from the public source data if available, ")
-        print("or ask the instructor how Module 3 should be handled with the current GradCafe layout.")
+        print("\nANALYSIS READINESS WARNING:")
+        for field, reason in blockers:
+            print(f"  - {field}: 0 populated values. {reason}")
+        print(
+            "\nThe cleaned dataset is structurally valid, but these analyses cannot "
+            "produce meaningful results until source-supported values are available."
+        )
+        print("Do not fabricate or impute values to make the queries non-null.")
         return 2
 
-    print("\nPASS: every analysis-critical field has at least some usable data.")
+    print("\nPASS: structure and analysis-critical field availability checks passed.")
     return 0
 
 

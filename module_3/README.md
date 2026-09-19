@@ -1,48 +1,83 @@
 # Module 3 - Database Queries, SQLAlchemy, and Dynamic Webpages
 
-## Data preparation and cleaned database input
+## Checkpoint 01: baseline and database-ready cleaning
 
-Module 3 reuses the real GradCafe data collected and standardized in Module 2. The database input is created by `clean.py` from `llm_extend_applicant_data.json` and written to `cleaned_applicant_data.json`.
+This Module 3 folder begins from the real Module 2 GradCafe scraper, raw/structured JSON, and LLM-standardized output. The database input for Module 3 is generated reproducibly from `llm_extend_applicant_data.json` by `clean.py` and written to `cleaned_applicant_data.json`.
 
-Run:
+Run the cleaner from the `module_3` directory:
 
 ```powershell
 python clean.py --input llm_extend_applicant_data.json --output cleaned_applicant_data.json
 ```
 
-The Module 3 cleaning step is intentionally conservative. It only performs transformations supported directly by the collected source data:
-
-- decodes HTML entities and normalizes whitespace;
-- maps the existing Module 2 field names to the Module 3 database field names;
-- converts `date_added` to ISO `YYYY-MM-DD` when the source date can be parsed;
-- converts GPA/GRE values to numeric types only when a source value exists;
-- preserves the original scraped university and original program text together in the `program` field;
-- carries forward the two explicitly designated LLM-standardized fields as `llm_generated_program` and `llm_generated_university`.
-
-The cleaner does **not** infer, impute, or fabricate missing values. A missing degree is not guessed from a program title, a missing term is not assumed to be Fall 2026, and missing nationality/GPA/GRE values remain JSON `null` so PostgreSQL can store them as SQL `NULL`. This preserves the distinction between source data and derived/standardized data.
-
-`p_id` is not fabricated in the JSON. `load_data.py` will create it as the PostgreSQL primary key, while the real GradCafe result URL will be used as a unique source identifier to prevent duplicate inserts when the loader is rerun.
-
-Current cleaning audit of the 30,011-row Module 2 dataset:
+The cleaner maps the existing Module 2 fields to the exact Module 3 database schema:
 
 ```text
-program:                  30,011 populated
-date_added:               30,011 populated
-url:                      30,011 populated
-status:                   30,011 populated
-degree:                   28,791 populated
-llm_generated_program:    30,011 populated
-llm_generated_university: 30,011 populated
-term:                          0 populated
-us_or_international:          0 populated
-gpa:                          0 populated
-gre:                          0 populated
-gre_v:                        0 populated
-gre_aw:                       0 populated
-duplicate URLs:               0
+p_id
+program
+comments
+date_added
+url
+status
+term
+us_or_international
+gpa
+gre
+gre_v
+gre_aw
+degree
+llm_generated_program
+llm_generated_university
 ```
 
-The zero-populated fields reflect what was absent from the captured public GradCafe survey listings; they are not filled with made-up values. We will address whether additional source-supported values can be collected before relying on those fields for the required Module 3 analyses.
+### Data provenance and cleaning rules
+
+The cleaning stage is intentionally conservative. It does **not** guess or impute missing applicant information.
+
+- `p_id` is the integer result identifier already present in each public GradCafe URL, e.g. `/result/1020482` becomes `1020482`.
+- `program` combines the original downloaded university and original program text so that the original-field SQL questions can search both pieces of source information in the single Module 3 `program` column.
+- `date_added` is converted from the scraped GradCafe date format to ISO `YYYY-MM-DD` so PostgreSQL can load it as a date.
+- available numeric GPA/GRE values are converted to floats; unexpected non-empty numeric formats fail loudly instead of being silently discarded.
+- `llm-generated-program` and `llm-generated-university` are renamed to the Module 3 schema names while remaining separate from the original downloaded program information.
+- missing source values remain JSON `null` and later become SQL `NULL`.
+- duplicate `p_id` values or duplicate URLs cause validation to fail.
+
+`checkpoint_01_audit.py` independently verifies row-by-row that the cleaned file is a deterministic transformation of the LLM-extended Module 2 file and that no GPA, GRE, term, nationality, or degree values were invented.
+
+Run the checkpoint audit with:
+
+```powershell
+python checkpoint_01_audit.py
+```
+
+Expected result:
+
+```text
+CHECKPOINT 01 AUDIT: PASS
+Rows verified: 30,011
+Unique p_id values: 30,011
+Unique URLs: 30,011
+No GPA/GRE/term/nationality/degree values were inferred beyond source fields.
+```
+
+The current source-backed field completeness is:
+
+- 30,011 / 30,011 rows have `p_id`, `program`, `date_added`, `url`, and `status`.
+- 30,011 / 30,011 rows have both LLM-generated program/university fields.
+- 28,791 / 30,011 rows have a source-provided `degree` value.
+- the captured listing pages provided no comment bodies, term, nationality, GPA, or GRE metrics, so those fields remain `null` rather than being fabricated.
+
+Run the readiness report with:
+
+```powershell
+python data_preflight.py
+```
+
+The preflight intentionally reports an analysis-readiness warning while the current dataset has zero source-supported values for term, nationality, GPA, and GRE. That warning is not a schema failure; it exists to prevent us from accidentally producing meaningless SQL answers later. We will resolve the source-data question before finalizing the analysis portions of Module 3.
+
+### Secrets and generated files
+
+Database credentials will be supplied outside Git (for example with environment variables). `.env` files, credentials, virtual environments, Python caches, captured-page artifacts, model weights, and scraper runtime state are excluded from version control.
 
 ---
 
