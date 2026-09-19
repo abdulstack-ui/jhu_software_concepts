@@ -108,6 +108,22 @@ The second `load_data.py` run should report zero net-new rows, demonstrating tha
 Detailed setup and verification instructions are in `CHECKPOINT_02_DATABASE.md`.
 
 
+## Checkpoint 03: raw SQL analysis
+
+`query_data.py` contains the nine assigned PostgreSQL questions plus two student-defined analyses using raw SQL through psycopg. Percentages are formatted to two decimal places with `%`, averages to two decimal places, and count results as whole numbers. SQL `NULL` is displayed as `N/A` when an average has no observations or a percentage has no usable denominator; unavailable source fields are never imputed.
+
+Run:
+
+```powershell
+python checkpoint_03_audit.py
+python query_data.py
+python query_data.py --show-sql
+python checkpoint_03_audit.py --database
+```
+
+Detailed notes are in `CHECKPOINT_03_RAW_SQL.md`.
+
+
 ---
 
 ## Inherited Module 2 scraping and standardization documentation
