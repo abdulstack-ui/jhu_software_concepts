@@ -1,0 +1,16 @@
+Total records: 30,011
+program: 30,011 populated / 30,011
+comments: 0 populated / 30,011
+date_added: 30,011 populated / 30,011
+url: 30,011 populated / 30,011
+status: 30,011 populated / 30,011
+term: 0 populated / 30,011
+us_or_international: 0 populated / 30,011
+gpa: 0 populated / 30,011
+gre: 0 populated / 30,011
+gre_v: 0 populated / 30,011
+gre_aw: 0 populated / 30,011
+degree: 28,791 populated / 30,011
+llm_generated_program: 30,011 populated / 30,011
+llm_generated_university: 30,011 populated / 30,011
+duplicate URLs: 0
