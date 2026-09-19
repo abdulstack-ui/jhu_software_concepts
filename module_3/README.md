@@ -79,9 +79,39 @@ The preflight intentionally reports an analysis-readiness warning while the curr
 
 Database credentials will be supplied outside Git (for example with environment variables). `.env` files, credentials, virtual environments, Python caches, captured-page artifacts, model weights, and scraper runtime state are excluded from version control.
 
+## Checkpoint 02: PostgreSQL database and data loading
+
+`load_data.py` loads `cleaned_applicant_data.json` into the single required PostgreSQL table, `applicants`, using psycopg 3. The program creates the table when it does not exist, verifies that an existing table has the exact required column order/types and `p_id` primary key, and upserts on `p_id` so re-running the loader does not create duplicate applicant records.
+
+Database settings are intentionally not stored in the repository. psycopg reads the standard PostgreSQL environment variables:
+
+```powershell
+$env:PGHOST = "localhost"
+$env:PGPORT = "5432"
+$env:PGDATABASE = "gradcafe"
+$env:PGUSER = "postgres"
+$env:PGPASSWORD = "YOUR_LOCAL_POSTGRES_PASSWORD"
+```
+
+After creating the local PostgreSQL database, run:
+
+```powershell
+python -m pip install -r requirements.txt
+python checkpoint_02_audit.py
+python load_data.py
+python load_data.py
+python checkpoint_02_audit.py --database
+```
+
+The second `load_data.py` run should report zero net-new rows, demonstrating that repeated loading is idempotent. The live audit checks the table schema, primary key, duplicate IDs, and all 30,011 cleaned source rows against PostgreSQL row-for-row. Missing source values are passed as Python `None` and stored as SQL `NULL`; the loader never invents missing applicant information.
+
+Detailed setup and verification instructions are in `CHECKPOINT_02_DATABASE.md`.
+
+
 ---
 
 ## Inherited Module 2 scraping and standardization documentation
+
 
 
 ## Name
