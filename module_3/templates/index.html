@@ -15,17 +15,29 @@
                 <h1>GradCafe Application Analysis</h1>
                 <p class="subtitle">Live analysis from the PostgreSQL <code>applicants</code> table using SQLAlchemy.</p>
             </div>
-            <form method="post" action="{{ url_for('update_analysis') }}">
-                <button class="button primary" type="submit">Update Analysis</button>
-            </form>
+            <div class="actions" aria-label="Data controls">
+                <form method="post" action="{{ url_for('pull_data') }}">
+                    <button class="button secondary" type="submit" {% if pull_running %}disabled{% endif %}>Pull Data</button>
+                </form>
+                <form method="post" action="{{ url_for('update_analysis') }}">
+                    <button class="button primary" type="submit">Update Analysis</button>
+                </form>
+            </div>
         </header>
 
         <section class="control-note">
-            <strong>Update Analysis</strong> re-queries PostgreSQL and displays the latest records already in the database. It does not start a scrape.
+            <p><strong>Pull Data</strong> reuses the Module 2 scraper to check GradCafe for newly submitted application results and add new usable records to PostgreSQL. Because GradCafe may require browser verification, keep one verified <code>/survey</code> tab open in the debug-Chrome session before starting a pull.</p>
+            <p><strong>Update Analysis</strong> only re-queries PostgreSQL. It never starts or interrupts a scrape, so it is safe to use while Pull Data is running.</p>
         </section>
 
         {% if status %}
             <div class="message success" role="status">{{ status }}</div>
+        {% endif %}
+        {% if pull_status %}
+            <div class="message {% if pull_status.state == 'error' %}error{% else %}info{% endif %}" role="status">
+                <strong>Pull Data:</strong> {{ pull_status.message }}
+                {% if pull_status.updated_at %}<span class="status-time">Updated {{ pull_status.updated_at }}</span>{% endif %}
+            </div>
         {% endif %}
         {% if error %}
             <div class="message error" role="alert">{{ error }}</div>
@@ -33,6 +45,7 @@
 
         <div class="meta-row">
             <span>11 analyses</span>
+            <span>{% if pull_running %}Pull Data: running{% else %}Pull Data: idle{% endif %}</span>
             <span>Last page query: {{ updated_at }}</span>
         </div>
 

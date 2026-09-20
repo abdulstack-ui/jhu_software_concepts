@@ -22,20 +22,25 @@ Thumbs.db
 .vscode/
 .idea/
 
-# Local scraper resume state
-capture_state.json
-
-# Runtime scraper state
+# Local scraper resume/runtime state
 capture_state.json
 llm_hosting/sample_out.json
+pull_data_work.json
+pull_data_status.json
+pull_data.lock
+pull_data.log
+pull_data_pages/
+pull_data_capture_state.json
 
-# Module 3 database credentials / local secrets
-.env
-.env.*
-!.env.example
-
-# Local inspection/debug artifacts
-result_page_sample.html
-
-# Final submission archive is generated separately
-module_3.zip
+# Source-repair/recovery scratch files retained locally, excluded from submission.
+CHECKPOINT_03A_RECOVERY*.md
+applicant_data.recovery_capture.json
+applicant_data.repaired.json
+cleaned_applicant_data.repaired.json
+llm_extend_applicant_data.repaired.json
+recovery_capture_state.json
+recovery_pages/
+inspect_gradcafe_markup.py
+repair_from_captured_pages.py
+repair_from_recovery_capture.py
+test_live_parser.py
