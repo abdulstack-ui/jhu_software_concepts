@@ -1,12 +1,11 @@
-﻿"""Run the Module 3 analysis questions with raw PostgreSQL SQL.
+"""Run the Module 3 analysis questions with raw PostgreSQL SQL.
 
 This file intentionally uses psycopg cursors and SQL strings only.  The
 SQLAlchemy versions required later in the assignment belong in orm_queries.py.
 
-The current scraped GradCafe listing data has no source-supported term,
-nationality, GPA, or GRE values.  Correct PostgreSQL aggregate semantics are
-therefore preserved: COUNT-based questions may return 0, while percentages or
-averages with no usable observations return SQL NULL and are displayed as
+The current database uses source-backed term, nationality, GPA, and GRE values where available.
+PostgreSQL aggregate semantics are preserved: missing values remain SQL NULL, averages
+exclude NULL values independently, and percentages with no usable denominator are displayed
 "N/A" rather than fabricated as 0.00.
 """
 

@@ -103,7 +103,7 @@ python load_data.py
 python checkpoint_02_audit.py --database
 ```
 
-The second `load_data.py` run should report zero net-new rows, demonstrating that repeated loading is idempotent. The live audit checks the table schema, primary key, duplicate IDs, and all 30,011 cleaned source rows against PostgreSQL row-for-row. Missing source values are passed as Python `None` and stored as SQL `NULL`; the loader never invents missing applicant information.
+The second `load_data.py` run should report zero net-new rows, demonstrating that repeated loading is idempotent. The live audit checks the table schema, primary key, duplicate IDs, and the current cleaned source rows against PostgreSQL row-for-row. Missing source values are passed as Python `None` and stored as SQL `NULL`; the loader never invents missing applicant information.
 
 Detailed setup and verification instructions are in `CHECKPOINT_02_DATABASE.md`.
 
@@ -302,9 +302,7 @@ and setup files.
 
 ### Data limitations
 
-The captured public survey-listing pages did not expose GPA, GRE values,
-student type, or program-start semester/year, so those fields remain `null`
-rather than being fabricated.
+The initial Module 2 parser did not recover GPA, GRE values, student type, or program-start semester/year. A later source-backed parser repair recovered those fields where they were present; values still unavailable in the source remain `null` rather than being fabricated.
 
 The captured listing blocks also did not expose applicant comment bodies. An
 earlier parser fallback interpreted the decision fragment `Wait listed on` as a
@@ -313,6 +311,31 @@ regression-tested, and the raw listing text remains preserved for traceability.
 
 During collection, a malformed checkpoint was handled conservatively by
 excluding the suspect records and continuing collection into older genuine
-public GradCafe entries. No records were fabricated. The final dataset contains
-30,011 unique non-null result URLs.
+public GradCafe entries. No records were fabricated. The Module 2 acquisition snapshot contained 30,011 unique non-null result URLs. The Module 3 Pull Data workflow later added four newly available unique records, bringing the current database-ready dataset to 30,015 rows.
 
+
+
+## Raw SQL versus SQLAlchemy ORM
+
+For example, the Fall 2026 count in raw SQL is:
+
+```sql
+SELECT COUNT(*)
+FROM applicants
+WHERE LOWER(TRIM(term)) = 'fall 2026';
+```
+
+The equivalent SQLAlchemy ORM expression is:
+
+```python
+statement = (
+    select(func.count())
+    .select_from(Applicant)
+    .where(func.lower(func.trim(Applicant.term)) == "fall 2026")
+)
+count = session.scalar(statement)
+```
+
+Both queries express the same filter and return the same result. SQLAlchemy ORM has the advantage of using mapped Python attributes that integrate naturally with the Flask application and make database logic easier to reuse. Raw SQL has the advantage of being concise and showing the exact database query directly. For this project, the ORM is useful for the application layer, while raw SQL remains useful for direct query inspection and database-focused analysis.
+
+The final verified PostgreSQL dataset contains 30,015 rows. The live Pull Data test added four newly available records without duplicate IDs or URLs; missing values remain SQL `NULL` rather than being fabricated.
