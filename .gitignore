@@ -1,2 +1,6 @@
 __pycache__/
 *.pyc
+
+.coverage
+m4_checkpoint_temp/
+m4_checkpoint_*.zip
