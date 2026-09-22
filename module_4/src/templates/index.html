@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>GradCafe Analysis</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <main class="page-shell">
+        <header class="hero">
+            <div>
+                <p class="byline">Abdullah Sarwar</p>
+                <p class="eyebrow">Johns Hopkins · Module 4</p>
+                <h1>GradCafe Application Analysis</h1>
+                <p class="subtitle">Live analysis from the PostgreSQL <code>applicants</code> table using SQLAlchemy.</p>
+            </div>
+            <div class="actions" aria-label="Data controls">
+                <form method="post" action="{{ url_for('pull_data') }}">
+                    <button
+                        class="button secondary"
+                        type="submit"
+                        data-testid="pull-data-btn"
+                        {% if pull_running %}disabled{% endif %}
+                    >Pull Data</button>
+                </form>
+                <form method="post" action="{{ url_for('update_analysis') }}">
+                    <button
+                        class="button primary"
+                        type="submit"
+                        data-testid="update-analysis-btn"
+                    >Update Analysis</button>
+                </form>
+            </div>
+        </header>
+
+        <section class="control-note">
+            <p><strong>Pull Data</strong> reuses the Module 2 scraper to check GradCafe for newly submitted application results and add new usable records to PostgreSQL.</p>
+            <p><strong>Update Analysis</strong> re-queries PostgreSQL. Module 4 tests exercise these controls through Flask's test client without live browser interaction.</p>
+        </section>
+
+        {% if status %}
+            <div class="message success" role="status">{{ status }}</div>
+        {% endif %}
+        {% if pull_status %}
+            <div class="message {% if pull_status.state == 'error' %}error{% else %}info{% endif %}" role="status">
+                <strong>Pull Data:</strong> {{ pull_status.message }}
+                {% if pull_status.updated_at %}<span class="status-time">Updated {{ pull_status.updated_at }}</span>{% endif %}
+            </div>
+        {% endif %}
+        {% if error %}
+            <div class="message error" role="alert">{{ error }}</div>
+        {% endif %}
+
+        <div class="meta-row">
+            <span>{{ analyses|length }} analyses</span>
+            <span>{% if pull_running %}Pull Data: running{% else %}Pull Data: idle{% endif %}</span>
+            <span>Last page query: {{ updated_at }}</span>
+        </div>
+
+        <section class="analysis-grid" aria-label="Database analyses">
+            {% for analysis in analyses %}
+                <article class="analysis-card" data-testid="analysis-card">
+                    <div class="question-number">Q{{ analysis.number }}</div>
+                    <h2>{{ analysis.question }}</h2>
+                    <p class="result"><strong>Answer:</strong> {{ analysis.result }}</p>
+                    <p class="explanation">{{ analysis.explanation }}</p>
+                </article>
+            {% endfor %}
+        </section>
+
+        <footer>
+            Results are computed dynamically from the current PostgreSQL database. GradCafe data is self-reported and should not be interpreted as a representative sample of all graduate applicants.
+        </footer>
+    </main>
+</body>
+</html>
