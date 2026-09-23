@@ -55,3 +55,8 @@ The documentation contains setup/environment variables, architecture, autodoc AP
 ## Read the Docs
 
 The repository includes `.readthedocs.yaml`. Import the public GitHub repository into Read the Docs, trigger a build, and submit the resulting Read the Docs URL with the assignment.
+
+## Submission Links
+- Read the Docs: https://jhu-software-concepts-abdul.readthedocs.io/en/latest/
+- GitHub SSH: git@github.com:abdulstack-ui/jhu_software_concepts.git
+
