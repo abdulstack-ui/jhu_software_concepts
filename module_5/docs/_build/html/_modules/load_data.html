@@ -1,0 +1,507 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>load_data &mdash; GradCafe Analytics - Module 4</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=f2a433a1"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            GradCafe Analytics - Module 4
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../setup.html">Setup and Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../testing.html">Testing Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../operations.html">Operations and Troubleshooting</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">GradCafe Analytics - Module 4</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Module code</a></li>
+      <li class="breadcrumb-item active">load_data</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for load_data</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Load cleaned GradCafe applicant data into PostgreSQL.</span>
+
+<span class="sd">Module 3, Part 1 requires one PostgreSQL table named ``applicants``.  This</span>
+<span class="sd">module creates that table if it does not yet exist, validates its schema, and</span>
+<span class="sd">upserts the database-ready records produced by ``clean.py``.</span>
+
+<span class="sd">Database credentials are never stored in source code.  psycopg reads the</span>
+<span class="sd">standard PostgreSQL environment variables (PGHOST, PGPORT, PGDATABASE,</span>
+<span class="sd">PGUSER, and PGPASSWORD).</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span> <span class="nn">argparse</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">date</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">,</span> <span class="n">Sequence</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">import</span> <span class="nn">psycopg</span>
+    <span class="kn">from</span> <span class="nn">psycopg</span> <span class="kn">import</span> <span class="n">sql</span>
+<span class="k">except</span> <span class="ne">ModuleNotFoundError</span><span class="p">:</span>  <span class="c1"># pragma: no cover - optional dependency diagnostic</span>
+    <span class="n">psycopg</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># type: ignore[assignment]</span>
+    <span class="n">sql</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># type: ignore[assignment]</span>
+
+<span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">psycopg</span> <span class="kn">import</span> <span class="n">Connection</span>
+
+<span class="kn">from</span> <span class="nn">clean</span> <span class="kn">import</span> <span class="n">validate_cleaned_records</span>
+
+<span class="n">DEFAULT_INPUT</span> <span class="o">=</span> <span class="s2">&quot;cleaned_applicant_data.json&quot;</span>
+
+<span class="n">EXPECTED_DATABASE_SCHEMA</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="p">(</span><span class="s2">&quot;p_id&quot;</span><span class="p">,</span> <span class="s2">&quot;integer&quot;</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;program&quot;</span><span class="p">,</span> <span class="s2">&quot;text&quot;</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;comments&quot;</span><span class="p">,</span> <span class="s2">&quot;text&quot;</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;date_added&quot;</span><span class="p">,</span> <span class="s2">&quot;date&quot;</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;url&quot;</span><span class="p">,</span> <span class="s2">&quot;text&quot;</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;status&quot;</span><span class="p">,</span> <span class="s2">&quot;text&quot;</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;term&quot;</span><span class="p">,</span> <span class="s2">&quot;text&quot;</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;us_or_international&quot;</span><span class="p">,</span> <span class="s2">&quot;text&quot;</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;gpa&quot;</span><span class="p">,</span> <span class="s2">&quot;double precision&quot;</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;gre&quot;</span><span class="p">,</span> <span class="s2">&quot;double precision&quot;</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;gre_v&quot;</span><span class="p">,</span> <span class="s2">&quot;double precision&quot;</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;gre_aw&quot;</span><span class="p">,</span> <span class="s2">&quot;double precision&quot;</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;degree&quot;</span><span class="p">,</span> <span class="s2">&quot;text&quot;</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;llm_generated_program&quot;</span><span class="p">,</span> <span class="s2">&quot;text&quot;</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;llm_generated_university&quot;</span><span class="p">,</span> <span class="s2">&quot;text&quot;</span><span class="p">),</span>
+<span class="p">)</span>
+
+<span class="n">EXPECTED_FIELD_NAMES</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span>
+    <span class="n">column_name</span> <span class="k">for</span> <span class="n">column_name</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">EXPECTED_DATABASE_SCHEMA</span>
+<span class="p">)</span>
+
+<span class="n">CREATE_TABLE_SQL_TEMPLATE</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">CREATE TABLE IF NOT EXISTS </span><span class="si">{}</span><span class="s2"> (</span>
+<span class="s2">    p_id INTEGER PRIMARY KEY,</span>
+<span class="s2">    program TEXT,</span>
+<span class="s2">    comments TEXT,</span>
+<span class="s2">    date_added DATE,</span>
+<span class="s2">    url TEXT,</span>
+<span class="s2">    status TEXT,</span>
+<span class="s2">    term TEXT,</span>
+<span class="s2">    us_or_international TEXT,</span>
+<span class="s2">    gpa DOUBLE PRECISION,</span>
+<span class="s2">    gre DOUBLE PRECISION,</span>
+<span class="s2">    gre_v DOUBLE PRECISION,</span>
+<span class="s2">    gre_aw DOUBLE PRECISION,</span>
+<span class="s2">    degree TEXT,</span>
+<span class="s2">    llm_generated_program TEXT,</span>
+<span class="s2">    llm_generated_university TEXT</span>
+<span class="s2">);</span>
+<span class="s2">&quot;&quot;&quot;</span>
+
+<span class="c1"># Backwards-compatible public-schema SQL string retained for documentation/audits.</span>
+<span class="n">CREATE_TABLE_SQL</span> <span class="o">=</span> <span class="n">CREATE_TABLE_SQL_TEMPLATE</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s2">&quot;applicants&quot;</span><span class="p">)</span>
+
+<span class="n">UPSERT_SQL_TEMPLATE</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">INSERT INTO </span><span class="si">{}</span><span class="s2"> (</span>
+<span class="s2">    p_id,</span>
+<span class="s2">    program,</span>
+<span class="s2">    comments,</span>
+<span class="s2">    date_added,</span>
+<span class="s2">    url,</span>
+<span class="s2">    status,</span>
+<span class="s2">    term,</span>
+<span class="s2">    us_or_international,</span>
+<span class="s2">    gpa,</span>
+<span class="s2">    gre,</span>
+<span class="s2">    gre_v,</span>
+<span class="s2">    gre_aw,</span>
+<span class="s2">    degree,</span>
+<span class="s2">    llm_generated_program,</span>
+<span class="s2">    llm_generated_university</span>
+<span class="s2">)</span>
+<span class="s2">VALUES (</span>
+<span class="s2">    </span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">,</span>
+<span class="s2">    </span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">,</span>
+<span class="s2">    </span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span>
+<span class="s2">)</span>
+<span class="s2">ON CONFLICT (p_id) DO UPDATE SET</span>
+<span class="s2">    program = EXCLUDED.program,</span>
+<span class="s2">    comments = EXCLUDED.comments,</span>
+<span class="s2">    date_added = EXCLUDED.date_added,</span>
+<span class="s2">    url = EXCLUDED.url,</span>
+<span class="s2">    status = EXCLUDED.status,</span>
+<span class="s2">    term = EXCLUDED.term,</span>
+<span class="s2">    us_or_international = EXCLUDED.us_or_international,</span>
+<span class="s2">    gpa = EXCLUDED.gpa,</span>
+<span class="s2">    gre = EXCLUDED.gre,</span>
+<span class="s2">    gre_v = EXCLUDED.gre_v,</span>
+<span class="s2">    gre_aw = EXCLUDED.gre_aw,</span>
+<span class="s2">    degree = EXCLUDED.degree,</span>
+<span class="s2">    llm_generated_program = EXCLUDED.llm_generated_program,</span>
+<span class="s2">    llm_generated_university = EXCLUDED.llm_generated_university;</span>
+<span class="s2">&quot;&quot;&quot;</span>
+
+<span class="c1"># Backwards-compatible public-schema SQL string.</span>
+<span class="n">UPSERT_SQL</span> <span class="o">=</span> <span class="n">UPSERT_SQL_TEMPLATE</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s2">&quot;applicants&quot;</span><span class="p">)</span>
+
+<span class="c1"># Original constants below are replaced by the schema-aware templates above.</span>
+
+
+<div class="viewcode-block" id="DatabaseConnectionError">
+<a class="viewcode-back" href="../api.html#load_data.DatabaseConnectionError">[docs]</a>
+<span class="k">class</span> <span class="nc">DatabaseConnectionError</span><span class="p">(</span><span class="ne">RuntimeError</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Raised when psycopg is unavailable or PostgreSQL cannot be reached.&quot;&quot;&quot;</span></div>
+
+
+
+<span class="k">def</span> <span class="nf">_psycopg_database_url</span><span class="p">(</span><span class="n">database_url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Normalize a SQLAlchemy-style PostgreSQL URL for psycopg.&quot;&quot;&quot;</span>
+
+    <span class="k">return</span> <span class="n">database_url</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;postgresql+psycopg://&quot;</span><span class="p">,</span> <span class="s2">&quot;postgresql://&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="connect_database">
+<a class="viewcode-back" href="../api.html#load_data.connect_database">[docs]</a>
+<span class="k">def</span> <span class="nf">connect_database</span><span class="p">(</span><span class="n">database_url</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Connection</span><span class="p">[</span><span class="n">Any</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Connect to PostgreSQL using ``DATABASE_URL`` or standard ``PG*`` vars.</span>
+
+<span class="sd">    Module 4 and GitHub Actions prefer ``DATABASE_URL``.  If no URL is</span>
+<span class="sd">    supplied, psycopg/libpq automatically reads PGHOST, PGPORT, PGDATABASE,</span>
+<span class="sd">    PGUSER and PGPASSWORD, preserving the Module 3 workflow.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">psycopg</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">DatabaseConnectionError</span><span class="p">(</span>
+            <span class="s2">&quot;psycopg is not installed. Run: python -m pip install -r requirements.txt&quot;</span>
+        <span class="p">)</span>
+
+    <span class="n">target_url</span> <span class="o">=</span> <span class="n">database_url</span> <span class="ow">or</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;DATABASE_URL&quot;</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">target_url</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">psycopg</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">_psycopg_database_url</span><span class="p">(</span><span class="n">target_url</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">psycopg</span><span class="o">.</span><span class="n">connect</span><span class="p">()</span>
+    <span class="k">except</span> <span class="n">psycopg</span><span class="o">.</span><span class="n">OperationalError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">DatabaseConnectionError</span><span class="p">(</span>
+            <span class="s2">&quot;Could not connect to PostgreSQL. Set DATABASE_URL or PGHOST, PGPORT, &quot;</span>
+            <span class="s2">&quot;PGDATABASE, PGUSER and PGPASSWORD, and make sure PostgreSQL is running.&quot;</span>
+        <span class="p">)</span> <span class="kn">from</span> <span class="nn">exc</span></div>
+
+
+
+<span class="k">def</span> <span class="nf">_applicants_table</span><span class="p">(</span><span class="n">schema</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return a safely quoted ``schema.applicants`` SQL identifier.&quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">sql</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">DatabaseConnectionError</span><span class="p">(</span><span class="s2">&quot;psycopg is required for database operations&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">sql</span><span class="o">.</span><span class="n">Identifier</span><span class="p">(</span><span class="n">schema</span><span class="p">,</span> <span class="s2">&quot;applicants&quot;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="load_cleaned_records">
+<a class="viewcode-back" href="../api.html#load_data.load_cleaned_records">[docs]</a>
+<span class="k">def</span> <span class="nf">load_cleaned_records</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Read and validate the database-ready JSON file.&quot;&quot;&quot;</span>
+    <span class="n">input_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">with</span> <span class="n">input_path</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">&quot;r&quot;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
+        <span class="n">records</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">file</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">records</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Expected cleaned applicant data to be a JSON array&quot;</span><span class="p">)</span>
+
+    <span class="n">validate_cleaned_records</span><span class="p">(</span><span class="n">records</span><span class="p">)</span>
+    <span class="n">_validate_value_types</span><span class="p">(</span><span class="n">records</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">records</span></div>
+
+
+
+<span class="k">def</span> <span class="nf">_validate_value_types</span><span class="p">(</span><span class="n">records</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Validate values that PostgreSQL must receive with specific types.&quot;&quot;&quot;</span>
+    <span class="n">numeric_fields</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;gpa&quot;</span><span class="p">,</span> <span class="s2">&quot;gre&quot;</span><span class="p">,</span> <span class="s2">&quot;gre_v&quot;</span><span class="p">,</span> <span class="s2">&quot;gre_aw&quot;</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">record</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">records</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">date</span><span class="o">.</span><span class="n">fromisoformat</span><span class="p">(</span><span class="n">record</span><span class="p">[</span><span class="s2">&quot;date_added&quot;</span><span class="p">])</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">TypeError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">)</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Record </span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2"> has invalid date_added: </span><span class="si">{</span><span class="n">record</span><span class="p">[</span><span class="s1">&#39;date_added&#39;</span><span class="p">]</span><span class="si">!r}</span><span class="s2">&quot;</span>
+            <span class="p">)</span> <span class="kn">from</span> <span class="nn">exc</span>
+
+        <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">numeric_fields</span><span class="p">:</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">record</span><span class="p">[</span><span class="n">field</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="p">(</span>
+                <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">))</span>
+            <span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Record </span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2"> field </span><span class="si">{</span><span class="n">field</span><span class="si">}</span><span class="s2"> is not numeric/NULL: </span><span class="si">{</span><span class="n">value</span><span class="si">!r}</span><span class="s2">&quot;</span>
+                <span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_to_database_row</span><span class="p">(</span><span class="n">record</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="o">...</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert one validated JSON record to database parameter values.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="p">(</span>
+        <span class="n">record</span><span class="p">[</span><span class="s2">&quot;p_id&quot;</span><span class="p">],</span>
+        <span class="n">record</span><span class="p">[</span><span class="s2">&quot;program&quot;</span><span class="p">],</span>
+        <span class="n">record</span><span class="p">[</span><span class="s2">&quot;comments&quot;</span><span class="p">],</span>
+        <span class="n">date</span><span class="o">.</span><span class="n">fromisoformat</span><span class="p">(</span><span class="n">record</span><span class="p">[</span><span class="s2">&quot;date_added&quot;</span><span class="p">]),</span>
+        <span class="n">record</span><span class="p">[</span><span class="s2">&quot;url&quot;</span><span class="p">],</span>
+        <span class="n">record</span><span class="p">[</span><span class="s2">&quot;status&quot;</span><span class="p">],</span>
+        <span class="n">record</span><span class="p">[</span><span class="s2">&quot;term&quot;</span><span class="p">],</span>
+        <span class="n">record</span><span class="p">[</span><span class="s2">&quot;us_or_international&quot;</span><span class="p">],</span>
+        <span class="n">record</span><span class="p">[</span><span class="s2">&quot;gpa&quot;</span><span class="p">],</span>
+        <span class="n">record</span><span class="p">[</span><span class="s2">&quot;gre&quot;</span><span class="p">],</span>
+        <span class="n">record</span><span class="p">[</span><span class="s2">&quot;gre_v&quot;</span><span class="p">],</span>
+        <span class="n">record</span><span class="p">[</span><span class="s2">&quot;gre_aw&quot;</span><span class="p">],</span>
+        <span class="n">record</span><span class="p">[</span><span class="s2">&quot;degree&quot;</span><span class="p">],</span>
+        <span class="n">record</span><span class="p">[</span><span class="s2">&quot;llm_generated_program&quot;</span><span class="p">],</span>
+        <span class="n">record</span><span class="p">[</span><span class="s2">&quot;llm_generated_university&quot;</span><span class="p">],</span>
+    <span class="p">)</span>
+
+
+<div class="viewcode-block" id="create_applicants_table">
+<a class="viewcode-back" href="../api.html#load_data.create_applicants_table">[docs]</a>
+<span class="k">def</span> <span class="nf">create_applicants_table</span><span class="p">(</span><span class="n">connection</span><span class="p">:</span> <span class="n">Connection</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span> <span class="n">schema</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;public&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create the required applicants table in ``schema`` and verify it.&quot;&quot;&quot;</span>
+
+    <span class="n">statement</span> <span class="o">=</span> <span class="n">sql</span><span class="o">.</span><span class="n">SQL</span><span class="p">(</span><span class="n">CREATE_TABLE_SQL_TEMPLATE</span><span class="p">)</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">_applicants_table</span><span class="p">(</span><span class="n">schema</span><span class="p">))</span>
+    <span class="k">with</span> <span class="n">connection</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cursor</span><span class="p">:</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">statement</span><span class="p">)</span>
+    <span class="n">validate_database_schema</span><span class="p">(</span><span class="n">connection</span><span class="p">,</span> <span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="validate_database_schema">
+<a class="viewcode-back" href="../api.html#load_data.validate_database_schema">[docs]</a>
+<span class="k">def</span> <span class="nf">validate_database_schema</span><span class="p">(</span>
+    <span class="n">connection</span><span class="p">:</span> <span class="n">Connection</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span> <span class="n">schema</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;public&quot;</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Fail if an applicants table does not match the Module 3 schema.&quot;&quot;&quot;</span>
+
+    <span class="k">with</span> <span class="n">connection</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cursor</span><span class="p">:</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            SELECT column_name, data_type</span>
+<span class="sd">            FROM information_schema.columns</span>
+<span class="sd">            WHERE table_schema = %s</span>
+<span class="sd">              AND table_name = &#39;applicants&#39;</span>
+<span class="sd">            ORDER BY ordinal_position;</span>
+<span class="sd">            &quot;&quot;&quot;</span><span class="p">,</span>
+            <span class="p">(</span><span class="n">schema</span><span class="p">,),</span>
+        <span class="p">)</span>
+        <span class="n">actual_schema</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">cursor</span><span class="o">.</span><span class="n">fetchall</span><span class="p">())</span>
+
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            SELECT attribute.attname</span>
+<span class="sd">            FROM pg_index index_info</span>
+<span class="sd">            JOIN pg_attribute attribute</span>
+<span class="sd">              ON attribute.attrelid = index_info.indrelid</span>
+<span class="sd">             AND attribute.attnum = ANY(index_info.indkey)</span>
+<span class="sd">            WHERE index_info.indrelid = to_regclass(%s)</span>
+<span class="sd">              AND index_info.indisprimary</span>
+<span class="sd">            ORDER BY attribute.attnum;</span>
+<span class="sd">            &quot;&quot;&quot;</span><span class="p">,</span>
+            <span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">schema</span><span class="si">}</span><span class="s2">.applicants&quot;</span><span class="p">,),</span>
+        <span class="p">)</span>
+        <span class="n">primary_key_columns</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchall</span><span class="p">())</span>
+
+    <span class="k">if</span> <span class="n">actual_schema</span> <span class="o">!=</span> <span class="n">EXPECTED_DATABASE_SCHEMA</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Existing </span><span class="si">{</span><span class="n">schema</span><span class="si">}</span><span class="s2">.applicants table does not match the required schema.</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;Expected: </span><span class="si">{</span><span class="n">EXPECTED_DATABASE_SCHEMA</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;Actual:   </span><span class="si">{</span><span class="n">actual_schema</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">primary_key_columns</span> <span class="o">!=</span> <span class="p">(</span><span class="s2">&quot;p_id&quot;</span><span class="p">,):</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+            <span class="s2">&quot;The applicants table must use p_id as its primary key. &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;Found primary key columns: </span><span class="si">{</span><span class="n">primary_key_columns</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="count_database_rows">
+<a class="viewcode-back" href="../api.html#load_data.count_database_rows">[docs]</a>
+<span class="k">def</span> <span class="nf">count_database_rows</span><span class="p">(</span><span class="n">connection</span><span class="p">:</span> <span class="n">Connection</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span> <span class="n">schema</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;public&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the current number of rows in the selected applicants table.&quot;&quot;&quot;</span>
+
+    <span class="n">statement</span> <span class="o">=</span> <span class="n">sql</span><span class="o">.</span><span class="n">SQL</span><span class="p">(</span><span class="s2">&quot;SELECT COUNT(*) FROM </span><span class="si">{}</span><span class="s2">;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">_applicants_table</span><span class="p">(</span><span class="n">schema</span><span class="p">))</span>
+    <span class="k">with</span> <span class="n">connection</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cursor</span><span class="p">:</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">statement</span><span class="p">)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">result</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;COUNT(*) unexpectedly returned no result&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">result</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span></div>
+
+
+
+<div class="viewcode-block" id="upsert_records">
+<a class="viewcode-back" href="../api.html#load_data.upsert_records">[docs]</a>
+<span class="k">def</span> <span class="nf">upsert_records</span><span class="p">(</span>
+    <span class="n">connection</span><span class="p">:</span> <span class="n">Connection</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+    <span class="n">records</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]],</span>
+    <span class="n">schema</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;public&quot;</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Insert/update records by ``p_id`` without creating duplicates.&quot;&quot;&quot;</span>
+
+    <span class="n">rows</span> <span class="o">=</span> <span class="p">[</span><span class="n">_to_database_row</span><span class="p">(</span><span class="n">record</span><span class="p">)</span> <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">records</span><span class="p">]</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">rows</span><span class="p">:</span>
+        <span class="k">return</span>
+    <span class="n">statement</span> <span class="o">=</span> <span class="n">sql</span><span class="o">.</span><span class="n">SQL</span><span class="p">(</span><span class="n">UPSERT_SQL_TEMPLATE</span><span class="p">)</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">_applicants_table</span><span class="p">(</span><span class="n">schema</span><span class="p">))</span>
+    <span class="k">with</span> <span class="n">connection</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cursor</span><span class="p">:</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">executemany</span><span class="p">(</span><span class="n">statement</span><span class="p">,</span> <span class="n">rows</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="load_records_into_connection">
+<a class="viewcode-back" href="../api.html#load_data.load_records_into_connection">[docs]</a>
+<span class="k">def</span> <span class="nf">load_records_into_connection</span><span class="p">(</span>
+    <span class="n">connection</span><span class="p">:</span> <span class="n">Connection</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+    <span class="n">records</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]],</span>
+    <span class="n">schema</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;public&quot;</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Validate and upsert already-cleaned records into an existing connection.</span>
+
+<span class="sd">    This is the dependency-injection seam used by Module 4 PostgreSQL tests: the</span>
+<span class="sd">    Flask endpoint receives fake scraper rows while the loader writes them to a</span>
+<span class="sd">    real, isolated PostgreSQL test schema.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">validate_cleaned_records</span><span class="p">(</span><span class="n">records</span><span class="p">)</span>
+    <span class="n">_validate_value_types</span><span class="p">(</span><span class="n">records</span><span class="p">)</span>
+    <span class="n">create_applicants_table</span><span class="p">(</span><span class="n">connection</span><span class="p">,</span> <span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">)</span>
+    <span class="n">rows_before</span> <span class="o">=</span> <span class="n">count_database_rows</span><span class="p">(</span><span class="n">connection</span><span class="p">,</span> <span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">)</span>
+    <span class="n">upsert_records</span><span class="p">(</span><span class="n">connection</span><span class="p">,</span> <span class="n">records</span><span class="p">,</span> <span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">)</span>
+    <span class="n">rows_after</span> <span class="o">=</span> <span class="n">count_database_rows</span><span class="p">(</span><span class="n">connection</span><span class="p">,</span> <span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">rows_before</span><span class="p">,</span> <span class="n">rows_after</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">records</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="load_into_database">
+<a class="viewcode-back" href="../api.html#load_data.load_into_database">[docs]</a>
+<span class="k">def</span> <span class="nf">load_into_database</span><span class="p">(</span><span class="n">input_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span> <span class="o">=</span> <span class="n">DEFAULT_INPUT</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create/validate ``public.applicants`` and upsert cleaned JSON records.&quot;&quot;&quot;</span>
+
+    <span class="n">records</span> <span class="o">=</span> <span class="n">load_cleaned_records</span><span class="p">(</span><span class="n">input_path</span><span class="p">)</span>
+    <span class="k">with</span> <span class="n">connect_database</span><span class="p">()</span> <span class="k">as</span> <span class="n">connection</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">load_records_into_connection</span><span class="p">(</span><span class="n">connection</span><span class="p">,</span> <span class="n">records</span><span class="p">,</span> <span class="n">schema</span><span class="o">=</span><span class="s2">&quot;public&quot;</span><span class="p">)</span></div>
+
+
+
+<span class="k">def</span> <span class="nf">_database_environment_summary</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Describe the target without ever printing a password.&quot;&quot;&quot;</span>
+    <span class="n">host</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;PGHOST&quot;</span><span class="p">,</span> <span class="s2">&quot;PostgreSQL default&quot;</span><span class="p">)</span>
+    <span class="n">port</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;PGPORT&quot;</span><span class="p">,</span> <span class="s2">&quot;PostgreSQL default&quot;</span><span class="p">)</span>
+    <span class="n">database</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;PGDATABASE&quot;</span><span class="p">,</span> <span class="s2">&quot;PostgreSQL default&quot;</span><span class="p">)</span>
+    <span class="n">user</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;PGUSER&quot;</span><span class="p">,</span> <span class="s2">&quot;PostgreSQL default&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;host=</span><span class="si">{</span><span class="n">host</span><span class="si">}</span><span class="s2">, port=</span><span class="si">{</span><span class="n">port</span><span class="si">}</span><span class="s2">, database=</span><span class="si">{</span><span class="n">database</span><span class="si">}</span><span class="s2">, user=</span><span class="si">{</span><span class="n">user</span><span class="si">}</span><span class="s2">&quot;</span>
+
+
+<div class="viewcode-block" id="main">
+<a class="viewcode-back" href="../api.html#load_data.main">[docs]</a>
+<span class="k">def</span> <span class="nf">main</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>  <span class="c1"># pragma: no cover - CLI wrapper</span>
+    <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span>
+        <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Load cleaned Module 3 GradCafe data into PostgreSQL.&quot;</span>
+    <span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--input&quot;</span><span class="p">,</span>
+        <span class="n">default</span><span class="o">=</span><span class="n">DEFAULT_INPUT</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Database-ready JSON file (default: </span><span class="si">{</span><span class="n">DEFAULT_INPUT</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;PostgreSQL target: </span><span class="si">{</span><span class="n">_database_environment_summary</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">rows_before</span><span class="p">,</span> <span class="n">rows_after</span><span class="p">,</span> <span class="n">processed</span> <span class="o">=</span> <span class="n">load_into_database</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">input</span><span class="p">)</span>
+    <span class="k">except</span> <span class="n">DatabaseConnectionError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">SystemExit</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">))</span> <span class="kn">from</span> <span class="nn">exc</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Validated and processed: </span><span class="si">{</span><span class="n">processed</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> cleaned records&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Database rows before:   </span><span class="si">{</span><span class="n">rows_before</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Database rows after:    </span><span class="si">{</span><span class="n">rows_after</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Net new rows:           </span><span class="si">{</span><span class="n">rows_after</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">rows_before</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Load complete. Re-running this script is safe: matching p_id rows are updated.&quot;</span><span class="p">)</span></div>
+
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>  <span class="c1"># pragma: no cover - CLI entry point</span>
+    <span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright .</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
