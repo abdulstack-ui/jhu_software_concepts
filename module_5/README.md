@@ -115,3 +115,14 @@ https://jhu-software-concepts-abdul.readthedocs.io/en/latest/
 GitHub SSH:
 
 `git@github.com:abdulstack-ui/jhu_software_concepts.git`
+
+## Run the Application
+
+From the `module_5` directory, configure the PostgreSQL environment variables described above, then run:
+
+```powershell
+$env:PYTHONPATH = (Resolve-Path .\src).Path
+python -m flask --app app:create_app run
+```
+
+Open `http://127.0.0.1:5000/analysis` in a browser to view the analysis page.
